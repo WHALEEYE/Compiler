@@ -1,11 +1,10 @@
 #pragma once
 
-#include <vector>
 #include <string>
+#include <vector>
 
 namespace L1 {
 
-  class Program{
-  };
+class Program {};
 
-}
+} // namespace L1

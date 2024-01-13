@@ -2,6 +2,6 @@
 
 #include <L1.h>
 
-namespace L1{
-  Program parse_file (char *fileName);
+namespace L1 {
+Program parse_file(char *fileName);
 }
