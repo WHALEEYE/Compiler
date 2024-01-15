@@ -5,35 +5,330 @@
 
 namespace L1 {
 
-enum RegisterID { rdi, rax };
+enum RegisterID { R8, R9, R10, R11, R12, R13, R14, R15, RAX, RBX, RCX, RDX, RDI, RSI, RBP, RSP };
+const std::string regToken[] = {"r8",  "r9",  "r10", "r11", "r12", "r13", "r14", "r15",
+                                "rax", "rbx", "rcx", "rdx", "rdi", "rsi", "rbp", "rsp"};
+const std::string regToken8[] = {"r8b",  "r9b",  "r10b", "r11b",         "r12b", "r13b",
+                                 "r14b", "r15b", "al",   "bl",           "cl",   "dl",
+                                 "dil",  "sil",  "bpl",  "<unknown-reg>"};
 
-class Item {};
+enum CompareOpID { LESS_THAN, LESS_EQUAL, EQUAL };
+const std::string cmpOpL1Token[] = {"<", "<=", "="};
+const std::string cmpOpX86Token[] = {"lt", "le", "e"};
+
+enum ShiftOpID { LEFT, RIGHT };
+const std::string shiftOpL1Token[] = {"<<=", "=>>"};
+const std::string shiftOpX86Token[] = {"salq", "sarq"};
+
+enum ArithOpID { ADD, SUB, MUL, AND };
+const std::string arithOpL1Token[] = {"+=", "-=", "*=", "&="};
+const std::string arithOpX86Token[] = {"addq", "subq", "imulq", "andq"};
+
+enum SelfModOpID { INC, DEC };
+const std::string selfModOpL1Token[] = {"++", "--"};
+const std::string selfModOpX86Token[] = {"inc", "dec"};
+
+class Item {
+public:
+  virtual std::string getL1Token();
+  virtual std::string getX86Token();
+};
 
 class Register : public Item {
 public:
-  Register(RegisterID r);
+  Register(RegisterID id);
+  RegisterID getID();
+  std::string getL1Token() override;
+  std::string getX86Token() override;
+  std::string getX86Token8();
 
 private:
-  RegisterID ID;
+  RegisterID id;
+};
+
+class Number : public Item {
+public:
+  Number(int64_t val);
+  int64_t getVal();
+  std::string getL1Token() override;
+  std::string getX86Token() override;
+
+private:
+  int64_t val;
+};
+
+class CompareOp : public Item {
+public:
+  CompareOp(CompareOpID id);
+  CompareOpID getID();
+  std::string getL1Token() override;
+  std::string getX86Token() override;
+
+private:
+  CompareOpID id;
+};
+
+class ShiftOp : public Item {
+public:
+  ShiftOp(ShiftOpID id);
+  ShiftOpID getID();
+  std::string getL1Token() override;
+  std::string getX86Token() override;
+
+private:
+  ShiftOpID id;
+};
+
+class ArithOp : public Item {
+public:
+  ArithOp(ArithOpID id);
+  ArithOpID getID();
+  std::string getL1Token() override;
+  std::string getX86Token() override;
+
+private:
+  ArithOpID id;
+};
+
+class SelfModOp : public Item {
+public:
+  SelfModOp(SelfModOpID id);
+  SelfModOpID getID();
+  std::string getL1Token() override;
+  std::string getX86Token() override;
+
+private:
+  SelfModOpID id;
+};
+
+class MemoryLocation : public Item {
+public:
+  MemoryLocation(Register *reg, Number *offset);
+  Register *getReg();
+  Number *getOffset();
+  std::string getL1Token() override;
+  std::string getX86Token() override;
+
+private:
+  Register *reg;
+  Number *offset;
+};
+
+class FunctionName : public Item {
+public:
+  FunctionName(std::string name);
+  std::string getPureName();
+  std::string getL1Token() override;
+  std::string getX86Token() override;
+
+private:
+  std::string pureName;
+};
+
+class Label : public Item {
+public:
+  Label(std::string name);
+  std::string getPureName();
+  std::string getL1Token() override;
+  std::string getX86Token() override;
+
+private:
+  std::string pureName;
 };
 
 /*
  * Instruction interface.
  */
-class Instruction {};
+class Instruction {
+public:
+  virtual std::string getL1Inst();
+  virtual std::string getX86Inst();
+};
 
 /*
  * Instructions.
  */
-class Instruction_ret : public Instruction {};
-
-class Instruction_assignment : public Instruction {
+class RetInst : public Instruction {
 public:
-  Instruction_assignment(Item *dst, Item *src);
+  std::string getL1Inst() override;
+  std::string getX86Inst() override;
+};
+
+class ShiftInst : public Instruction {
+public:
+  ShiftInst(ShiftOp *op, Item *lval, Item *rval);
+  ShiftOp *getOp();
+  Item *getLval();
+  Item *getRval();
+  std::string getL1Inst() override;
+  std::string getX86Inst() override;
 
 private:
-  Item *s;
-  Item *d;
+  ShiftOp *op;
+  Item *lval;
+  Item *rval;
+};
+
+class ArithInst : public Instruction {
+public:
+  ArithInst(ArithOp *op, Item *lval, Item *rval);
+  ArithOp *getOp();
+  Item *getLval();
+  Item *getRval();
+  std::string getL1Inst() override;
+  std::string getX86Inst() override;
+
+private:
+  ArithOp *op;
+  Item *lval;
+  Item *rval;
+};
+
+class SelfModInst : public Instruction {
+public:
+  SelfModInst(SelfModOp *op, Item *lval);
+  SelfModOp *getOp();
+  Item *getLval();
+  std::string getL1Inst() override;
+  std::string getX86Inst() override;
+
+private:
+  SelfModOp *op;
+  Item *lval;
+};
+
+class AssignInst : public Instruction {
+public:
+  AssignInst(Item *lval, Item *rval);
+  Item *getLval();
+  Item *getRval();
+  std::string getL1Inst() override;
+  std::string getX86Inst() override;
+
+private:
+  Item *lval;
+  Item *rval;
+};
+
+class CompareAssignInst : public Instruction {
+public:
+  CompareAssignInst(Register *lval, CompareOp *op, Item *cmpLval, Item *cmpRval);
+  Register *getLval();
+  CompareOp *getOp();
+  Item *getCmpLval();
+  Item *getCmpRval();
+  std::string getL1Inst() override;
+  std::string getX86Inst() override;
+
+private:
+  Register *lval;
+  CompareOp *op;
+  Item *cmpLval;
+  Item *cmpRval;
+};
+
+class CallInst : public Instruction {
+public:
+  CallInst(Item *callee, Number *arg_num);
+  Item *getCallee();
+  Number *getArgNum();
+  std::string getL1Inst() override;
+  std::string getX86Inst() override;
+
+private:
+  Item *callee;
+  Number *arg_num;
+};
+
+class PrintInst : public Instruction {
+public:
+  std::string getL1Inst() override;
+  std::string getX86Inst() override;
+};
+
+class InputInst : public Instruction {
+public:
+  std::string getL1Inst() override;
+  std::string getX86Inst() override;
+};
+
+class AllocateInst : public Instruction {
+public:
+  std::string getL1Inst() override;
+  std::string getX86Inst() override;
+};
+
+class TupleErrorInst : public Instruction {
+public:
+  std::string getL1Inst() override;
+  std::string getX86Inst() override;
+};
+
+class TensorErrorInst : public Instruction {
+public:
+  TensorErrorInst(Number *number);
+  Number *getNumber();
+  std::string getL1Inst() override;
+  std::string getX86Inst() override;
+
+private:
+  Number *number;
+};
+
+class SetInst : public Instruction {
+public:
+  SetInst(Register *lval, Register *base, Register *offset, Number *scalar);
+  Register *getLval();
+  Register *getBase();
+  Register *getOffset();
+  Number *getScalar();
+  std::string getL1Inst() override;
+  std::string getX86Inst() override;
+
+private:
+  Register *lval;
+  Register *base;
+  Register *offset;
+  Number *scalar;
+};
+
+class LabelInst : public Instruction {
+public:
+  LabelInst(Label *label);
+  Label *getLabel();
+  std::string getL1Inst() override;
+  std::string getX86Inst() override;
+
+private:
+  Label *label;
+};
+
+class GotoInst : public Instruction {
+public:
+  GotoInst(Label *label);
+  Label *getLabel();
+  std::string getL1Inst() override;
+  std::string getX86Inst() override;
+
+private:
+  Label *label;
+};
+
+class CondJumpInst : public Instruction {
+public:
+  CondJumpInst(CompareOp *op, Item *lval, Item *rval, Label *label);
+  CompareOp *getOp();
+  Item *getLval();
+  Item *getRval();
+  Label *getLabel();
+  std::string getL1Inst() override;
+  std::string getX86Inst() override;
+
+private:
+  CompareOp *op;
+  Item *lval;
+  Item *rval;
+  Label *label;
 };
 
 /*
@@ -42,7 +337,7 @@ private:
 class Function {
 public:
   std::string name;
-  int64_t arguments;
+  int64_t parameters;
   int64_t locals;
   std::vector<Instruction *> instructions;
 };
