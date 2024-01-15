@@ -6,27 +6,14 @@
 namespace L1 {
 
 enum RegisterID { R8, R9, R10, R11, R12, R13, R14, R15, RAX, RBX, RCX, RDX, RDI, RSI, RBP, RSP };
-const std::string regToken[] = {"r8",  "r9",  "r10", "r11", "r12", "r13", "r14", "r15",
-                                "rax", "rbx", "rcx", "rdx", "rdi", "rsi", "rbp", "rsp"};
-const std::string regToken8[] = {"r8b",  "r9b",  "r10b", "r11b",         "r12b", "r13b",
-                                 "r14b", "r15b", "al",   "bl",           "cl",   "dl",
-                                 "dil",  "sil",  "bpl",  "<unknown-reg>"};
 
 enum CompareOpID { LESS_THAN, LESS_EQUAL, EQUAL };
-const std::string cmpOpL1Token[] = {"<", "<=", "="};
-const std::string cmpOpX86Token[] = {"lt", "le", "e"};
 
 enum ShiftOpID { LEFT, RIGHT };
-const std::string shiftOpL1Token[] = {"<<=", "=>>"};
-const std::string shiftOpX86Token[] = {"salq", "sarq"};
 
 enum ArithOpID { ADD, SUB, MUL, AND };
-const std::string arithOpL1Token[] = {"+=", "-=", "*=", "&="};
-const std::string arithOpX86Token[] = {"addq", "subq", "imulq", "andq"};
 
 enum SelfModOpID { INC, DEC };
-const std::string selfModOpL1Token[] = {"++", "--"};
-const std::string selfModOpX86Token[] = {"inc", "dec"};
 
 class Item {
 public:

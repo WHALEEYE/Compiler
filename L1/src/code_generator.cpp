@@ -36,15 +36,18 @@ void generate_code(Program p) {
 
   for (auto f : p.functions) {
     outputFile << "_" + f->name.substr(1) << ":" << endl;
-    outputFile << "  subq $" << f->locals * 8 << ", %rsp" << endl;
+    if (f->locals > 0)
+      outputFile << "  subq $" << f->locals * 8 << ", %rsp" << endl;
 
     for (auto i : f->instructions) {
       auto indent = true;
       if (i->getX86Inst() == "")
         continue;
-      else if (i->getX86Inst() == "retq")
-        outputFile << "  addq $" << f->locals * 8 << ", %rsp" << endl;
-      else if (dynamic_cast<LabelInst *>(i))
+      else if (i->getX86Inst() == "retq") {
+        int amount = (f->parameters > 6 ? (f->parameters - 6) * 8 : 0) + f->locals * 8;
+        if (amount > 0)
+          outputFile << "  addq $" << amount << ", %rsp" << endl;
+      } else if (dynamic_cast<LabelInst *>(i))
         indent = false;
       outputFile << (indent ? "  " : "") << i->getX86Inst() << endl;
     }

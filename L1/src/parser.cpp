@@ -166,7 +166,7 @@ struct arith_inst : sor<seq<registers, spaces, arith_op, spaces, arith_rval>,
 struct self_mod_inst : seq<registers, spaces, sor<self_inc, self_dec>> {};
 
 struct norm_assign_inst : sor<seq<registers, spaces, arrow, spaces, sor<assign_rval, mem_loc>>,
-                              seq<mem_loc, space, arrow, space, assign_rval>> {};
+                              seq<mem_loc, spaces, arrow, spaces, assign_rval>> {};
 
 struct cmp_assign_inst
     : seq<registers, spaces, arrow, spaces, arith_rval, spaces, cmp_op, spaces, arith_rval> {};
@@ -192,8 +192,8 @@ struct label_inst : label {};
 
 struct goto_inst : seq<goto_str, spaces, label> {};
 
-struct cjump_inst : seq<cjump, spaces, arith_rval, spaces, cmp_op, spaces, arith_rval, spaces,
-                        label, spaces, label> {};
+struct cjump_inst
+    : seq<cjump, spaces, arith_rval, spaces, cmp_op, spaces, arith_rval, spaces, label> {};
 
 struct instruction
     : sor<seq<at<ret>, ret>, seq<at<assign_inst>, assign_inst>, seq<at<label_inst>, label_inst>,
@@ -225,9 +225,14 @@ struct grammar : must<entry_point> {};
  */
 template <typename Rule> struct action : nothing<Rule> {};
 
+template <> struct action<function> {
+  template <typename Input> static void apply(const Input &in, Program &p) {
+    auto currentF = p.functions.back();
+  }
+};
+
 template <> struct action<ref_func_name> {
   template <typename Input> static void apply(const Input &in, Program &p) {
-    std::cout << "function_name" << std::endl;
     auto n = new FunctionName(in.string());
     itemStack.push(n);
   }
@@ -443,14 +448,14 @@ template <> struct action<equal> {
 
 template <> struct action<lshift> {
   template <typename Input> static void apply(const Input &in, Program &p) {
-    auto op = new ArithOp(ArithOpID::ADD);
+    auto op = new ShiftOp(ShiftOpID::LEFT);
     itemStack.push(op);
   }
 };
 
 template <> struct action<rshift> {
   template <typename Input> static void apply(const Input &in, Program &p) {
-    auto op = new ArithOp(ArithOpID::SUB);
+    auto op = new ShiftOp(ShiftOpID::RIGHT);
     itemStack.push(op);
   }
 };
@@ -541,7 +546,6 @@ template <> struct action<self_mod_inst> {
 template <> struct action<norm_assign_inst> {
   template <typename Input> static void apply(const Input &in, Program &p) {
 
-    // std::cout << "norm_assign_inst" << std::endl;
     /*
      * Fetch the current function.
      */
@@ -567,7 +571,6 @@ template <> struct action<norm_assign_inst> {
 
 template <> struct action<cmp_assign_inst> {
   template <typename Input> static void apply(const Input &in, Program &p) {
-    // std::cout << "cmp_assign_inst" << std::endl;
     auto cmpRval = itemStack.pop();
     auto op = (CompareOp *)itemStack.pop();
     auto cmpLval = itemStack.pop();

@@ -3,6 +3,24 @@
 
 namespace L1 {
 
+const std::string regToken[] = {"r8",  "r9",  "r10", "r11", "r12", "r13", "r14", "r15",
+                                "rax", "rbx", "rcx", "rdx", "rdi", "rsi", "rbp", "rsp"};
+const std::string regToken8[] = {"r8b",  "r9b",  "r10b", "r11b",         "r12b", "r13b",
+                                 "r14b", "r15b", "al",   "bl",           "cl",   "dl",
+                                 "dil",  "sil",  "bpl",  "<unknown-reg>"};
+
+const std::string cmpOpL1Token[] = {"<", "<=", "="};
+const std::string cmpOpX86Token[] = {"l", "le", "e"};
+
+const std::string shiftOpL1Token[] = {"<<=", ">>="};
+const std::string shiftOpX86Token[] = {"salq", "sarq"};
+
+const std::string arithOpL1Token[] = {"+=", "-=", "*=", "&="};
+const std::string arithOpX86Token[] = {"addq", "subq", "imulq", "andq"};
+
+const std::string selfModOpL1Token[] = {"++", "--"};
+const std::string selfModOpX86Token[] = {"inc", "dec"};
+
 std::string Item::getL1Token() { return "<unknown-L1-token>"; }
 std::string Item::getX86Token() { return "<unknown-x86-token>"; }
 
@@ -12,7 +30,7 @@ std::string Register::getX86Token() { return "%" + regToken[id]; }
 std::string Register::getX86Token8() { return "%" + regToken8[id]; }
 
 Number::Number(int64_t val) : val{val} { return; }
-std::int64_t Number::getVal() { return val; }
+int64_t Number::getVal() { return val; }
 std::string Number::getL1Token() { return std::to_string(val); }
 std::string Number::getX86Token() { return std::to_string(val); }
 
@@ -86,7 +104,10 @@ std::string ArithInst::getL1Inst() {
   return lval->getL1Token() + " " + op->getL1Token() + " " + rval->getL1Token();
 }
 std::string ArithInst::getX86Inst() {
-  return op->getX86Token() + " " + rval->getX86Token() + ", " + lval->getX86Token();
+  auto r = rval->getX86Token();
+  if (dynamic_cast<Number *>(rval))
+    r = "$" + r;
+  return op->getX86Token() + " " + r + ", " + lval->getX86Token();
 }
 
 SelfModInst::SelfModInst(SelfModOp *op, Item *lval) : op{op}, lval{lval} { return; }
@@ -115,7 +136,7 @@ std::string CompareAssignInst::getL1Inst() {
 std::string CompareAssignInst::getX86Inst() {
   auto newCmpL = cmpLval->getX86Token();
   auto newCmpR = cmpRval->getX86Token();
-  auto reversed = false;
+  auto reversed = true;
   if (dynamic_cast<Number *>(cmpLval) && dynamic_cast<Number *>(cmpRval)) {
     auto cmpL = dynamic_cast<Number *>(cmpLval);
     auto cmpR = dynamic_cast<Number *>(cmpRval);
@@ -132,22 +153,22 @@ std::string CompareAssignInst::getX86Inst() {
   } else if (dynamic_cast<Number *>(cmpRval)) {
     newCmpL = "$" + cmpRval->getX86Token();
     newCmpR = cmpLval->getX86Token();
-    reversed = true;
+    reversed = false;
   } else if (dynamic_cast<Number *>(cmpLval)) {
     newCmpL = '$' + cmpLval->getX86Token();
     newCmpR = cmpRval->getX86Token();
   }
-  auto cmpInst = "cmpq " + newCmpL + ", " + newCmpR + "\n";
+  auto cmpInst = "cmpq " + newCmpL + ", " + newCmpR + "\n  ";
 
   auto newOp = op->getX86Token();
   if (reversed) {
     if (op->getID() == CompareOpID::LESS_EQUAL) {
-      newOp = "g";
-    } else if (op->getID() == CompareOpID::LESS_THAN) {
       newOp = "ge";
+    } else if (op->getID() == CompareOpID::LESS_THAN) {
+      newOp = "g";
     }
   }
-  auto setInst = "set" + newOp + " " + lval->getX86Token8() + "\n";
+  auto setInst = "set" + newOp + " " + lval->getX86Token8() + "\n  ";
   auto movInst = "movzbq " + lval->getX86Token8() + ", " + lval->getX86Token();
   return cmpInst + setInst + movInst;
 }
@@ -157,13 +178,12 @@ std::string CallInst::getL1Inst() {
   return "call " + callee->getL1Token() + " " + arg_num->getL1Token();
 }
 std::string CallInst::getX86Inst() {
-  std::string movRspInst = "subq $8, %rsp\n";
   auto jmpInst = "jmp *" + callee->getX86Token();
   if (dynamic_cast<FunctionName *>(callee)) {
-    auto movAmount = (arg_num->getVal() > 6 ? 8 * (arg_num->getVal() - 6) : 0) + 8;
-    movRspInst = "subq $" + std::to_string(movAmount) + ", %rsp\n";
-    jmpInst = "call " + callee->getX86Token();
+    jmpInst = "jmp " + callee->getX86Token();
   }
+  auto movAmount = (arg_num->getVal() > 6 ? 8 * (arg_num->getVal() - 6) : 0) + 8;
+  auto movRspInst = "subq $" + std::to_string(movAmount) + ", %rsp\n  ";
   return movRspInst + jmpInst;
 }
 
@@ -226,7 +246,7 @@ std::string CondJumpInst::getL1Inst() {
 std::string CondJumpInst::getX86Inst() {
   auto newCmpL = lval->getX86Token();
   auto newCmpR = rval->getX86Token();
-  auto reversed = false;
+  auto reversed = true;
   if (dynamic_cast<Number *>(lval) && dynamic_cast<Number *>(rval)) {
     auto cmpL = dynamic_cast<Number *>(lval);
     auto cmpR = dynamic_cast<Number *>(rval);
@@ -244,19 +264,19 @@ std::string CondJumpInst::getX86Inst() {
   } else if (dynamic_cast<Number *>(rval)) {
     newCmpL = "$" + rval->getX86Token();
     newCmpR = lval->getX86Token();
-    reversed = true;
+    reversed = false;
   } else if (dynamic_cast<Number *>(lval)) {
     newCmpL = '$' + lval->getX86Token();
     newCmpR = rval->getX86Token();
   }
-  auto cmpInst = "cmpq " + newCmpL + ", " + newCmpR + "\n";
+  auto cmpInst = "cmpq " + newCmpL + ", " + newCmpR + "\n  ";
 
   auto newOp = op->getX86Token();
   if (reversed) {
     if (op->getID() == CompareOpID::LESS_EQUAL) {
-      newOp = "g";
-    } else if (op->getID() == CompareOpID::LESS_THAN) {
       newOp = "ge";
+    } else if (op->getID() == CompareOpID::LESS_THAN) {
+      newOp = "g";
     }
   }
   auto jmpInst = "j" + newOp + " " + label->getX86Token();
