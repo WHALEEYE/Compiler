@@ -646,7 +646,7 @@ Program parse_function_file(char *fileName) {
    */
   file_input<> fileInput(fileName);
   Program p;
-  p.entryPointLabel = "@temp";
+  p.entryPointLabel = "<none>";
   parse<function, action>(fileInput, p);
 
   return p;

@@ -8,8 +8,8 @@
 #include <parser.h>
 
 void print_help(char *progName) {
-  std::cerr << "Usage: " << progName << " [-v] [-g 0|1] [-O 0|1|2] [-s] [-l] [-i] SOURCE"
-            << std::endl;
+  std::cerr << "Usage: " << progName
+            << " [-v] [-g 0|1] [-O 0|1|2] [-s] [-l] [-i] SOURCE" << std::endl;
   return;
 }
 
@@ -68,18 +68,6 @@ int main(int argc, char **argv) {
    */
   L2::Program p;
 
-  if (verbose) {
-    std::cout << "(" << p.entryPointLabel << std::endl;
-    for (auto f : p.functions) {
-      std::cout << "  (" << f->name << "\n    " << f->parameters << "\n";
-      for (auto i : f->instructions) {
-        std::cout << "    " << i->getL2Inst() << std::endl;
-      }
-      std::cout << "  )" << std::endl;
-    }
-    std::cout << ")" << std::endl;
-  }
-
   if (spill_only) {
 
     /*
@@ -107,6 +95,20 @@ int main(int argc, char **argv) {
      * Parse the L2 program.
      */
     p = L2::parse_file(argv[optind]);
+  }
+
+  if (verbose) {
+    if (p.entryPointLabel != "<none>")
+      std::cout << "(" << p.entryPointLabel << std::endl;
+    for (auto f : p.functions) {
+      std::cout << "  (" << f->name << "\n    " << f->parameters << "\n";
+      for (auto i : f->instructions) {
+        std::cout << "    " << i->getL2Inst() << std::endl;
+      }
+      std::cout << "  )" << std::endl;
+    }
+    if (p.entryPointLabel != "<none>")
+      std::cout << ")" << std::endl;
   }
 
   /*
