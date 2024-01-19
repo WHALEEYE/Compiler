@@ -214,49 +214,48 @@ struct grammar : must<entry_point> {};
 template <typename Rule> struct action : nothing<Rule> {};
 
 template <> struct action<ref_func_name> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
+  template <typename Input> static void apply(const Input &in, Program &P) {
     auto n = new FunctionName(in.string());
     itemStack.push(n);
   }
 };
 
 template <> struct action<function_name> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
+  template <typename Input> static void apply(const Input &in, Program &P) {
     auto name = in.string();
-    if (p.entryPointLabel.empty()) {
-      p.entryPointLabel = name;
+    if (P.getEntryPointLabel().empty()) {
+      P.setEntryPointLabel(name);
     } else {
-      auto newF = new Function();
-      newF->name = name;
-      p.functions.push_back(newF);
+      auto newF = new Function(name);
+      P.addFunction(newF);
     }
   }
 };
 
 template <> struct action<var_name> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
+  template <typename Input> static void apply(const Input &in, Program &P) {
     auto n = new Variable(in.string());
     itemStack.push(n);
   }
 };
 
 template <> struct action<number> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
+  template <typename Input> static void apply(const Input &in, Program &P) {
     auto n = new Number(std::stoll(in.string()));
     itemStack.push(n);
   }
 };
 
 template <> struct action<param_num> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
-    auto currentF = p.functions.back();
-    currentF->parameters = std::stoll(in.string());
+  template <typename Input> static void apply(const Input &in, Program &P) {
+    auto currF = P.getCurrFunction();
+    currF->setParameters(std::stoll(in.string()));
   }
 };
 
 // offset number: multiple of 8
 template <> struct action<offset_num> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
+  template <typename Input> static void apply(const Input &in, Program &P) {
     auto offset = std::stoll(in.string());
     if (offset % 8 != 0)
       throw parse_error("Offset number must be a multiple of 8.", in);
@@ -267,169 +266,169 @@ template <> struct action<offset_num> {
 };
 
 template <> struct action<tensor_error_num> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
+  template <typename Input> static void apply(const Input &in, Program &P) {
     auto n = new Number(std::stoll(in.string()));
     itemStack.push(n);
   }
 };
 
 template <> struct action<scalar_num> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
+  template <typename Input> static void apply(const Input &in, Program &P) {
     auto n = new Number(std::stoll(in.string()));
     itemStack.push(n);
   }
 };
 
 template <> struct action<ret> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
-    auto currentF = p.functions.back();
-    auto i = new RetInst();
-    currentF->instructions.push_back(i);
+  template <typename Input> static void apply(const Input &in, Program &P) {
+    auto I = new RetInst();
+    auto currBB = P.getCurrFunction()->getCurrBasicBlock();
+    currBB->addInstruction(I);
   }
 };
 
 template <> struct action<label> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
+  template <typename Input> static void apply(const Input &in, Program &P) {
     auto l = new Label(in.string());
     itemStack.push(l);
   }
 };
 
 template <> struct action<r8> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
+  template <typename Input> static void apply(const Input &in, Program &P) {
     auto r = new Register(RegisterID::R8);
     itemStack.push(r);
   }
 };
 
 template <> struct action<r9> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
+  template <typename Input> static void apply(const Input &in, Program &P) {
     auto r = new Register(RegisterID::R9);
     itemStack.push(r);
   }
 };
 
 template <> struct action<rax> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
+  template <typename Input> static void apply(const Input &in, Program &P) {
     auto r = new Register(RegisterID::RAX);
     itemStack.push(r);
   }
 };
 
 template <> struct action<rcx> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
+  template <typename Input> static void apply(const Input &in, Program &P) {
     auto r = new Register(RegisterID::RCX);
     itemStack.push(r);
   }
 };
 
 template <> struct action<rdx> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
+  template <typename Input> static void apply(const Input &in, Program &P) {
     auto r = new Register(RegisterID::RDX);
     itemStack.push(r);
   }
 };
 
 template <> struct action<rdi> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
+  template <typename Input> static void apply(const Input &in, Program &P) {
     auto r = new Register(RegisterID::RDI);
     itemStack.push(r);
   }
 };
 
 template <> struct action<rsi> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
+  template <typename Input> static void apply(const Input &in, Program &P) {
     auto r = new Register(RegisterID::RSI);
     itemStack.push(r);
   }
 };
 
 template <> struct action<rsp> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
+  template <typename Input> static void apply(const Input &in, Program &P) {
     auto r = new Register(RegisterID::RSP);
     itemStack.push(r);
   }
 };
 
 template <> struct action<small> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
+  template <typename Input> static void apply(const Input &in, Program &P) {
     auto cmp = new CompareOp(CompareOpID::LESS_THAN);
     itemStack.push(cmp);
   }
 };
 
 template <> struct action<sm_eq> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
+  template <typename Input> static void apply(const Input &in, Program &P) {
     auto cmp = new CompareOp(CompareOpID::LESS_EQUAL);
     itemStack.push(cmp);
   }
 };
 
 template <> struct action<equal> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
+  template <typename Input> static void apply(const Input &in, Program &P) {
     auto cmp = new CompareOp(CompareOpID::EQUAL);
     itemStack.push(cmp);
   }
 };
 
 template <> struct action<lshift> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
+  template <typename Input> static void apply(const Input &in, Program &P) {
     auto op = new ShiftOp(ShiftOpID::LEFT);
     itemStack.push(op);
   }
 };
 
 template <> struct action<rshift> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
+  template <typename Input> static void apply(const Input &in, Program &P) {
     auto op = new ShiftOp(ShiftOpID::RIGHT);
     itemStack.push(op);
   }
 };
 
 template <> struct action<self_add> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
+  template <typename Input> static void apply(const Input &in, Program &P) {
     auto op = new ArithOp(ArithOpID::ADD);
     itemStack.push(op);
   }
 };
 
 template <> struct action<self_sub> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
+  template <typename Input> static void apply(const Input &in, Program &P) {
     auto op = new ArithOp(ArithOpID::SUB);
     itemStack.push(op);
   }
 };
 
 template <> struct action<self_mul> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
+  template <typename Input> static void apply(const Input &in, Program &P) {
     auto op = new ArithOp(ArithOpID::MUL);
     itemStack.push(op);
   }
 };
 
 template <> struct action<self_and> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
+  template <typename Input> static void apply(const Input &in, Program &P) {
     auto op = new ArithOp(ArithOpID::AND);
     itemStack.push(op);
   }
 };
 
 template <> struct action<self_inc> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
+  template <typename Input> static void apply(const Input &in, Program &P) {
     auto op = new SelfModOp(SelfModOpID::INC);
     itemStack.push(op);
   }
 };
 
 template <> struct action<self_dec> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
+  template <typename Input> static void apply(const Input &in, Program &P) {
     auto op = new SelfModOp(SelfModOpID::DEC);
     itemStack.push(op);
   }
 };
 
 template <> struct action<mem_loc> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
+  template <typename Input> static void apply(const Input &in, Program &P) {
     auto offset = (Number *)itemStack.pop();
     auto reg = (Register *)itemStack.pop();
     auto m = new MemoryLocation(reg, offset);
@@ -438,7 +437,7 @@ template <> struct action<mem_loc> {
 };
 
 template <> struct action<stack_loc> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
+  template <typename Input> static void apply(const Input &in, Program &P) {
     auto offset = (Number *)itemStack.pop();
     auto s = new StackLocation(offset);
     itemStack.push(s);
@@ -446,169 +445,200 @@ template <> struct action<stack_loc> {
 };
 
 template <> struct action<shift_inst> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
+  template <typename Input> static void apply(const Input &in, Program &P) {
     auto rval = itemStack.pop();
     auto op = (ShiftOp *)itemStack.pop();
     auto lval = itemStack.pop();
-    auto i = new ShiftInst(op, lval, rval);
-    auto currentF = p.functions.back();
-    currentF->instructions.push_back(i);
+    auto I = new ShiftInst(op, lval, rval);
+    auto currBB = P.getCurrFunction()->getCurrBasicBlock();
+    currBB->addInstruction(I);
   }
 };
 
 template <> struct action<arith_inst> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
+  template <typename Input> static void apply(const Input &in, Program &P) {
     auto rval = itemStack.pop();
     auto op = (ArithOp *)itemStack.pop();
     auto lval = itemStack.pop();
-    auto i = new ArithInst(op, lval, rval);
-    auto currentF = p.functions.back();
-    currentF->instructions.push_back(i);
+    auto I = new ArithInst(op, lval, rval);
+    auto currBB = P.getCurrFunction()->getCurrBasicBlock();
+    currBB->addInstruction(I);
   }
 };
 
 template <> struct action<self_mod_inst> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
+  template <typename Input> static void apply(const Input &in, Program &P) {
     auto op = (SelfModOp *)itemStack.pop();
     auto lval = itemStack.pop();
-    auto i = new SelfModInst(op, lval);
-    auto currentF = p.functions.back();
-    currentF->instructions.push_back(i);
+    auto I = new SelfModInst(op, lval);
+    auto currBB = P.getCurrFunction()->getCurrBasicBlock();
+    currBB->addInstruction(I);
   }
 };
 
 template <> struct action<norm_assign_inst> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
-
-    /*
-     * Fetch the current function.
-     */
-    auto currentF = p.functions.back();
-
-    /*
-     * Fetch the last two tokens parsed.
-     */
+  template <typename Input> static void apply(const Input &in, Program &P) {
     auto rval = itemStack.pop();
     auto lval = itemStack.pop();
-
-    /*
-     * Create the instruction.
-     */
-    auto i = new AssignInst(lval, rval);
-
-    /*
-     * Add the just-created instruction to the current function.
-     */
-    currentF->instructions.push_back(i);
+    auto I = new AssignInst(lval, rval);
+    auto currBB = P.getCurrFunction()->getCurrBasicBlock();
+    currBB->addInstruction(I);
   }
 };
 
 template <> struct action<cmp_assign_inst> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
+  template <typename Input> static void apply(const Input &in, Program &P) {
     auto cmpRval = itemStack.pop();
     auto op = (CompareOp *)itemStack.pop();
     auto cmpLval = itemStack.pop();
     auto lval = (Register *)itemStack.pop();
-    auto i = new CompareAssignInst(lval, op, cmpLval, cmpRval);
-    auto currentF = p.functions.back();
-    currentF->instructions.push_back(i);
+    auto I = new CompareAssignInst(lval, op, cmpLval, cmpRval);
+    auto currBB = P.getCurrFunction()->getCurrBasicBlock();
+    currBB->addInstruction(I);
   }
 };
 
 template <> struct action<call_inst> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
-    auto arg_num = (Number *)itemStack.pop();
+  template <typename Input> static void apply(const Input &in, Program &P) {
+    auto argNum = (Number *)itemStack.pop();
     auto callee = itemStack.pop();
-    auto i = new CallInst(callee, arg_num);
-    auto currentF = p.functions.back();
-    currentF->instructions.push_back(i);
+    auto I = new CallInst(callee, argNum);
+    auto currBB = P.getCurrFunction()->getCurrBasicBlock();
+    currBB->addInstruction(I);
   }
 };
 
 template <> struct action<print_inst> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
-    auto i = new PrintInst();
-    auto currentF = p.functions.back();
-    currentF->instructions.push_back(i);
+  template <typename Input> static void apply(const Input &in, Program &P) {
+    auto I = new PrintInst();
+    auto currBB = P.getCurrFunction()->getCurrBasicBlock();
+    currBB->addInstruction(I);
   }
 };
 
 template <> struct action<input_inst> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
-    auto i = new InputInst();
-    auto currentF = p.functions.back();
-    currentF->instructions.push_back(i);
+  template <typename Input> static void apply(const Input &in, Program &P) {
+    auto I = new InputInst();
+    auto currBB = P.getCurrFunction()->getCurrBasicBlock();
+    currBB->addInstruction(I);
   }
 };
 
 template <> struct action<allocate_inst> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
-    auto i = new AllocateInst();
-    auto currentF = p.functions.back();
-    currentF->instructions.push_back(i);
+  template <typename Input> static void apply(const Input &in, Program &P) {
+    auto I = new AllocateInst();
+    auto currBB = P.getCurrFunction()->getCurrBasicBlock();
+    currBB->addInstruction(I);
   }
 };
 
 template <> struct action<tuple_error_inst> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
-    auto i = new TupleErrorInst();
-    auto currentF = p.functions.back();
-    currentF->instructions.push_back(i);
+  template <typename Input> static void apply(const Input &in, Program &P) {
+    auto I = new TupleErrorInst();
+    auto currBB = P.getCurrFunction()->getCurrBasicBlock();
+    currBB->addInstruction(I);
   }
 };
 
 template <> struct action<tensor_error_inst> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
+  template <typename Input> static void apply(const Input &in, Program &P) {
     auto number = (Number *)itemStack.pop();
-    auto i = new TensorErrorInst(number);
-    auto currentF = p.functions.back();
-    currentF->instructions.push_back(i);
+    auto I = new TensorErrorInst(number);
+    auto currBB = P.getCurrFunction()->getCurrBasicBlock();
+    currBB->addInstruction(I);
   }
 };
 
 template <> struct action<set_inst> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
+  template <typename Input> static void apply(const Input &in, Program &P) {
     auto scalar = (Number *)itemStack.pop();
     auto offset = (Register *)itemStack.pop();
     auto base = (Register *)itemStack.pop();
     auto lval = (Register *)itemStack.pop();
-    auto i = new SetInst(lval, base, offset, scalar);
-    auto currentF = p.functions.back();
-    currentF->instructions.push_back(i);
+    auto I = new SetInst(lval, base, offset, scalar);
+    auto currBB = P.getCurrFunction()->getCurrBasicBlock();
+    currBB->addInstruction(I);
   }
 };
 
 template <> struct action<label_inst> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
+  template <typename Input> static void apply(const Input &in, Program &P) {
     auto label = new Label(in.string());
-    auto i = new LabelInst(label);
-    auto currentF = p.functions.back();
-    currentF->instructions.push_back(i);
+    auto I = new LabelInst(label);
+
+    auto currBB = P.getCurrFunction()->getCurrBasicBlock();
+
+    if (!currBB->getInstructions().empty()) {
+      // last instruction is not goto or cjump
+      auto newBB = new BasicBlock();
+      newBB->addPredecessor(currBB);
+      currBB->addSuccessor(newBB);
+      P.getCurrFunction()->addBasicBlock(newBB);
+      currBB = newBB;
+    }
+
+    currBB->addInstruction(I);
   }
 };
 
 template <> struct action<goto_inst> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
+  template <typename Input> static void apply(const Input &in, Program &P) {
     auto label = (Label *)itemStack.pop();
-    auto i = new GotoInst(label);
-    auto currentF = p.functions.back();
-    currentF->instructions.push_back(i);
+    auto I = new GotoInst(label);
+    auto currBB = P.getCurrFunction()->getCurrBasicBlock();
+    currBB->addInstruction(I);
+
+    // next instruction is in a new basic block
+    auto newBB = new BasicBlock();
+    P.getCurrFunction()->addBasicBlock(newBB);
   }
 };
 
 template <> struct action<cjump_inst> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
+  template <typename Input> static void apply(const Input &in, Program &P) {
     auto label = (Label *)itemStack.pop();
     auto rval = itemStack.pop();
     auto op = (CompareOp *)itemStack.pop();
     auto lval = itemStack.pop();
-    auto i = new CondJumpInst(op, lval, rval, label);
-    auto currentF = p.functions.back();
-    currentF->instructions.push_back(i);
+    auto I = new CondJumpInst(op, lval, rval, label);
+    auto currBB = P.getCurrFunction()->getCurrBasicBlock();
+    currBB->addInstruction(I);
+
+    // next instruction is in a new BB, and is a successor of currBB
+    auto newBB = new BasicBlock();
+    newBB->addPredecessor(currBB);
+    currBB->addSuccessor(newBB);
+    P.getCurrFunction()->addBasicBlock(newBB);
   }
 };
 
-Program parse_file(char *fileName) {
+void linkBasicBlocks(Program &P) {
+  std::map<std::string, BasicBlock *> labelToBB;
+  // find all basic blocks that starts with a label
+  // these BBs may have predecessors that are not linked yet
+  for (auto &F : P.getFunctions())
+    for (auto &BB : F->getBasicBlocks())
+      if (auto inst = dynamic_cast<LabelInst *>(BB->getFirstInstruction()))
+        labelToBB[inst->getLabel()->getName()] = BB;
+
+  // link all basic blocks
+  for (auto &F : P.getFunctions())
+    for (auto &BB : F->getBasicBlocks()) {
+      if (auto inst = dynamic_cast<GotoInst *>(BB->getTerminator())) {
+        auto label = inst->getLabel();
+        auto targetBB = labelToBB[label->getName()];
+        BB->addSuccessor(targetBB);
+        targetBB->addPredecessor(BB);
+      } else if (auto inst = dynamic_cast<CondJumpInst *>(BB->getTerminator())) {
+        auto label = inst->getLabel();
+        auto targetBB = labelToBB[label->getName()];
+        BB->addSuccessor(targetBB);
+        targetBB->addPredecessor(BB);
+      }
+    }
+}
+
+Program parseFile(char *fileName) {
 
   /*
    * Check the grammar for some possible issues.
@@ -622,17 +652,17 @@ Program parse_file(char *fileName) {
    * Parse.
    */
   file_input<> fileInput(fileName);
-  Program p;
-  parse<grammar, action>(fileInput, p);
-
-  return p;
+  Program P;
+  parse<grammar, action>(fileInput, P);
+  linkBasicBlocks(P);
+  return P;
 }
 
-Program parse_spill_file(char *fileName) {
+Program parseSpillFile(char *fileName) {
   throw std::runtime_error("parse_spill_file() not implemented yet.");
 }
 
-Program parse_function_file(char *fileName) {
+Program parseFunctionFile(char *fileName) {
   /*
    * Check the grammar for some possible issues.
    */
@@ -645,11 +675,11 @@ Program parse_function_file(char *fileName) {
    * Parse.
    */
   file_input<> fileInput(fileName);
-  Program p;
-  p.entryPointLabel = "<none>";
-  parse<function, action>(fileInput, p);
-
-  return p;
+  Program P;
+  P.setEntryPointLabel("@<PHONY>");
+  parse<function, action>(fileInput, P);
+  linkBasicBlocks(P);
+  return P;
 }
 
 } // namespace L2

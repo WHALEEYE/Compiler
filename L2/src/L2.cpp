@@ -1,296 +1,187 @@
 #include <L2.h>
+#include <cstdint>
 #include <string>
 
 namespace L2 {
 
-const std::string regToken[] = {"r8",  "r9",  "r10", "r11", "r12", "r13", "r14", "r15",
-                                "rax", "rbx", "rcx", "rdx", "rdi", "rsi", "rbp", "rsp"};
-const std::string regToken8[] = {"r8b",  "r9b",  "r10b", "r11b",         "r12b", "r13b",
-                                 "r14b", "r15b", "al",   "bl",           "cl",   "dl",
-                                 "dil",  "sil",  "bpl",  "<unknown-reg>"};
+const std::string regName[] = {"r8",  "r9",  "r10", "r11", "r12", "r13", "r14", "r15",
+                               "rax", "rbx", "rcx", "rdx", "rdi", "rsi", "rbp", "rsp"};
+const std::string reg8BitName[] = {"r8b",  "r9b",  "r10b", "r11b",         "r12b", "r13b",
+                                   "r14b", "r15b", "al",   "bl",           "cl",   "dl",
+                                   "dil",  "sil",  "bpl",  "<unknown-reg>"};
 
-const std::string cmpOpL1Token[] = {"<", "<=", "="};
-const std::string cmpOpX86Token[] = {"l", "le", "e"};
+const std::string cmpOpName[] = {"<", "<=", "="};
 
-const std::string shiftOpL1Token[] = {"<<=", ">>="};
-const std::string shiftOpX86Token[] = {"salq", "sarq"};
+const std::string shiftOpName[] = {"<<=", ">>="};
 
-const std::string arithOpL1Token[] = {"+=", "-=", "*=", "&="};
-const std::string arithOpX86Token[] = {"addq", "subq", "imulq", "andq"};
+const std::string arithOpName[] = {"+=", "-=", "*=", "&="};
 
-const std::string selfModOpL1Token[] = {"++", "--"};
-const std::string selfModOpX86Token[] = {"inc", "dec"};
-
-std::string Item::getL2Token() { return "<unknown-L1-token>"; }
-std::string Item::getL1Token() { return "<unknown-x86-token>"; }
+const std::string selfModOpName[] = {"++", "--"};
 
 Register::Register(RegisterID id) : id{id} { return; }
-std::string Register::getL2Token() { return regToken[id]; }
-std::string Register::getL1Token() { return "%" + regToken[id]; }
-std::string Register::getX86Token8() { return "%" + regToken8[id]; }
+RegisterID Register::getID() { return id; }
+std::string Register::toStr() { return getName(); }
+std::string Register::getName() { return regName[id]; }
+std::string Register::get8BitName() { return reg8BitName[id]; }
 
-Variable::Variable(std::string name) : pureName{name.substr(1)} { return; }
-std::string Variable::getPureName() { return pureName; }
-std::string Variable::getL2Token() { return "%" + pureName; }
-std::string Variable::getL1Token() { return "<unimplemented-token>"; }
+Variable::Variable(std::string name) : name{name.substr(1)} { return; }
+std::string Variable::getName() { return name; }
+std::string Variable::toStr() { return "%" + name; }
 
 Number::Number(int64_t val) : val{val} { return; }
 int64_t Number::getVal() { return val; }
-std::string Number::getL2Token() { return std::to_string(val); }
-std::string Number::getL1Token() { return std::to_string(val); }
+std::string Number::toStr() { return std::to_string(val); }
 
 CompareOp::CompareOp(CompareOpID id) : id{id} { return; }
 CompareOpID CompareOp::getID() { return id; }
-std::string CompareOp::getL2Token() { return cmpOpL1Token[id]; }
-std::string CompareOp::getL1Token() { return cmpOpX86Token[id]; }
+std::string CompareOp::toStr() { return cmpOpName[id]; }
 
 ShiftOp::ShiftOp(ShiftOpID id) : id{id} { return; }
 ShiftOpID ShiftOp::getID() { return id; }
-std::string ShiftOp::getL2Token() { return shiftOpL1Token[id]; }
-std::string ShiftOp::getL1Token() { return shiftOpX86Token[id]; }
+std::string ShiftOp::toStr() { return shiftOpName[id]; }
 
 ArithOp::ArithOp(ArithOpID id) : id{id} { return; }
 ArithOpID ArithOp::getID() { return id; }
-std::string ArithOp::getL2Token() { return arithOpL1Token[id]; }
-std::string ArithOp::getL1Token() { return arithOpX86Token[id]; }
+std::string ArithOp::toStr() { return arithOpName[id]; }
 
 SelfModOp::SelfModOp(SelfModOpID id) : id{id} { return; }
 SelfModOpID SelfModOp::getID() { return id; }
-std::string SelfModOp::getL2Token() { return selfModOpL1Token[id]; }
-std::string SelfModOp::getL1Token() { return selfModOpX86Token[id]; }
+std::string SelfModOp::toStr() { return selfModOpName[id]; }
 
 MemoryLocation::MemoryLocation(Register *reg, Number *offset) : reg{reg}, offset{offset} { return; }
 Register *MemoryLocation::getReg() { return reg; }
 Number *MemoryLocation::getOffset() { return offset; }
-std::string MemoryLocation::getL2Token() {
-  return "mem " + reg->getL2Token() + " " + offset->getL2Token();
-}
-std::string MemoryLocation::getL1Token() {
-  return offset->getL1Token() + "(" + reg->getL1Token() + ")";
-}
+std::string MemoryLocation::toStr() { return "mem " + reg->toStr() + " " + offset->toStr(); }
 
 StackLocation::StackLocation(Number *offset) : offset{offset} { return; }
 Number *StackLocation::getOffset() { return offset; }
-std::string StackLocation::getL2Token() { return "stack-arg " + offset->getL2Token(); }
-std::string StackLocation::getL1Token() { return offset->getL1Token() + "(%rsp)"; }
+std::string StackLocation::toStr() { return "stack-arg " + offset->toStr(); }
 
-FunctionName::FunctionName(std::string name) : pureName{name.substr(1)} { return; }
-std::string FunctionName::getPureName() { return pureName; }
-std::string FunctionName::getL2Token() { return '@' + pureName; }
-std::string FunctionName::getL1Token() { return '_' + pureName; }
+FunctionName::FunctionName(std::string name) : name{name.substr(1)} { return; }
+std::string FunctionName::getName() { return name; }
+std::string FunctionName::toStr() { return '@' + name; }
 
-Label::Label(std::string name) : pureName{name.substr(1)} { return; }
-std::string Label::getPureName() { return pureName; }
-std::string Label::getL2Token() { return ':' + pureName; }
-std::string Label::getL1Token() { return '_' + pureName; }
+Label::Label(std::string name) : name{name.substr(1)} { return; }
+std::string Label::getName() { return name; }
+std::string Label::toStr() { return ':' + name; }
 
 /*
  *  Instructions.
  */
-std::string Instruction::getL2Inst() { return "<unknown-L1-inst>"; }
-std::string Instruction::getL1Inst() { return "<unknown-x86-inst>"; }
-
-std::string RetInst::getL2Inst() { return "return"; }
-std::string RetInst::getL1Inst() { return "retq"; }
+std::string RetInst::toStr() { return "return"; }
 
 ShiftInst::ShiftInst(ShiftOp *op, Item *lval, Item *rval) : op{op}, lval{lval}, rval{rval} {
   return;
 }
-std::string ShiftInst::getL2Inst() {
-  return lval->getL2Token() + " " + op->getL2Token() + " " + rval->getL2Token();
-}
-std::string ShiftInst::getL1Inst() {
-  std::string amount = "$" + rval->getL1Token();
-  if (dynamic_cast<Register *>(rval)) {
-    amount = "%cl";
-  }
-  return op->getL1Token() + " " + amount + ", " + lval->getL1Token();
-}
+ShiftOp *ShiftInst::getOp() { return op; }
+Item *ShiftInst::getLval() { return lval; }
+Item *ShiftInst::getRval() { return rval; }
+std::string ShiftInst::toStr() { return lval->toStr() + " " + op->toStr() + " " + rval->toStr(); }
 
 ArithInst::ArithInst(ArithOp *op, Item *lval, Item *rval) : op{op}, lval{lval}, rval{rval} {
   return;
 }
-std::string ArithInst::getL2Inst() {
-  return lval->getL2Token() + " " + op->getL2Token() + " " + rval->getL2Token();
-}
-std::string ArithInst::getL1Inst() {
-  auto r = rval->getL1Token();
-  if (dynamic_cast<Number *>(rval))
-    r = "$" + r;
-  return op->getL1Token() + " " + r + ", " + lval->getL1Token();
-}
+ArithOp *ArithInst::getOp() { return op; }
+Item *ArithInst::getLval() { return lval; }
+Item *ArithInst::getRval() { return rval; }
+std::string ArithInst::toStr() { return lval->toStr() + " " + op->toStr() + " " + rval->toStr(); }
 
 SelfModInst::SelfModInst(SelfModOp *op, Item *lval) : op{op}, lval{lval} { return; }
-std::string SelfModInst::getL2Inst() { return lval->getL2Token() + " " + op->getL2Token(); }
-std::string SelfModInst::getL1Inst() { return op->getL1Token() + " " + lval->getL1Token(); }
+SelfModOp *SelfModInst::getOp() { return op; }
+Item *SelfModInst::getLval() { return lval; }
+std::string SelfModInst::toStr() { return lval->toStr() + " " + op->toStr(); }
 
 AssignInst::AssignInst(Item *lval, Item *rval) : lval{lval}, rval{rval} { return; }
-std::string AssignInst::getL2Inst() { return lval->getL2Token() + " <- " + rval->getL2Token(); }
-std::string AssignInst::getL1Inst() {
-  auto r = rval->getL1Token();
-  if (dynamic_cast<FunctionName *>(rval) || dynamic_cast<Number *>(rval) ||
-      dynamic_cast<Label *>(rval)) {
-    r = '$' + rval->getL1Token();
-  }
-  return "movq " + r + ", " + lval->getL1Token();
-}
+Item *AssignInst::getLval() { return lval; }
+Item *AssignInst::getRval() { return rval; }
+std::string AssignInst::toStr() { return lval->toStr() + " <- " + rval->toStr(); }
 
 CompareAssignInst::CompareAssignInst(Register *lval, CompareOp *op, Item *cmpLval, Item *cmpRval)
     : lval{lval}, op{op}, cmpLval{cmpLval}, cmpRval{cmpRval} {
   return;
 }
-std::string CompareAssignInst::getL2Inst() {
-  return lval->getL2Token() + " <- " + cmpLval->getL2Token() + " " + op->getL2Token() + " " +
-         cmpRval->getL2Token();
-}
-std::string CompareAssignInst::getL1Inst() {
-  auto newCmpL = cmpLval->getL1Token();
-  auto newCmpR = cmpRval->getL1Token();
-  auto reversed = true;
-  if (dynamic_cast<Number *>(cmpLval) && dynamic_cast<Number *>(cmpRval)) {
-    auto cmpL = dynamic_cast<Number *>(cmpLval);
-    auto cmpR = dynamic_cast<Number *>(cmpRval);
-    // directly compare
-    if (op->getID() == CompareOpID::EQUAL && cmpL->getVal() == cmpR->getVal()) {
-      return "movq $1, " + lval->getL1Token();
-    } else if (op->getID() == CompareOpID::LESS_EQUAL && cmpL->getVal() <= cmpR->getVal()) {
-      return "movq $1, " + lval->getL1Token();
-    } else if (op->getID() == CompareOpID::LESS_THAN && cmpL->getVal() < cmpR->getVal()) {
-      return "movq $1, " + lval->getL1Token();
-    } else {
-      return "movq $0, " + lval->getL1Token();
-    }
-  } else if (dynamic_cast<Number *>(cmpRval)) {
-    newCmpL = "$" + cmpRval->getL1Token();
-    newCmpR = cmpLval->getL1Token();
-    reversed = false;
-  } else if (dynamic_cast<Number *>(cmpLval)) {
-    newCmpL = '$' + cmpLval->getL1Token();
-    newCmpR = cmpRval->getL1Token();
-  }
-  auto cmpInst = "cmpq " + newCmpL + ", " + newCmpR + "\n  ";
-
-  auto newOp = op->getL1Token();
-  if (reversed) {
-    if (op->getID() == CompareOpID::LESS_EQUAL) {
-      newOp = "ge";
-    } else if (op->getID() == CompareOpID::LESS_THAN) {
-      newOp = "g";
-    }
-  }
-  auto setInst = "set" + newOp + " " + lval->getX86Token8() + "\n  ";
-  auto movInst = "movzbq " + lval->getX86Token8() + ", " + lval->getL1Token();
-  return cmpInst + setInst + movInst;
+Register *CompareAssignInst::getLval() { return lval; }
+CompareOp *CompareAssignInst::getOp() { return op; }
+Item *CompareAssignInst::getCmpLval() { return cmpLval; }
+Item *CompareAssignInst::getCmpRval() { return cmpRval; }
+std::string CompareAssignInst::toStr() {
+  return lval->toStr() + " <- " + cmpLval->toStr() + " " + op->toStr() + " " + cmpRval->toStr();
 }
 
-CallInst::CallInst(Item *callee, Number *arg_num) : callee{callee}, arg_num{arg_num} { return; }
-std::string CallInst::getL2Inst() {
-  return "call " + callee->getL2Token() + " " + arg_num->getL2Token();
-}
-std::string CallInst::getL1Inst() {
-  auto jmpInst = "jmp *" + callee->getL1Token();
-  if (dynamic_cast<FunctionName *>(callee)) {
-    jmpInst = "jmp " + callee->getL1Token();
-  }
-  auto movAmount = (arg_num->getVal() > 6 ? 8 * (arg_num->getVal() - 6) : 0) + 8;
-  auto movRspInst = "subq $" + std::to_string(movAmount) + ", %rsp\n  ";
-  return movRspInst + jmpInst;
-}
+CallInst::CallInst(Item *callee, Number *argNum) : callee{callee}, argNum{argNum} { return; }
+Item *CallInst::getCallee() { return callee; }
+Number *CallInst::getArgNum() { return argNum; }
+std::string CallInst::toStr() { return "call " + callee->toStr() + " " + argNum->toStr(); }
 
-std::string PrintInst::getL2Inst() { return "call print 1"; }
-std::string PrintInst::getL1Inst() { return "call print"; }
+std::string PrintInst::toStr() { return "call print 1"; }
 
-std::string InputInst::getL2Inst() { return "call input 0"; }
-std::string InputInst::getL1Inst() { return "call input"; }
+std::string InputInst::toStr() { return "call input 0"; }
 
-std::string AllocateInst::getL2Inst() { return "call allocate 2"; }
-std::string AllocateInst::getL1Inst() { return "call allocate"; }
+std::string AllocateInst::toStr() { return "call allocate 2"; }
 
-std::string TupleErrorInst::getL2Inst() { return "call tuple-error 0"; }
-std::string TupleErrorInst::getL1Inst() { return "call tuple_error"; }
+std::string TupleErrorInst::toStr() { return "call tuple-error 0"; }
 
 TensorErrorInst::TensorErrorInst(Number *number) : number(number) { return; }
-std::string TensorErrorInst::getL2Inst() { return "call tensor-error " + number->getL2Token(); }
-std::string TensorErrorInst::getL1Inst() {
-  switch (number->getVal()) {
-  case 1:
-    return "call array_tensor_error_null";
-  case 3:
-    return "call array_error";
-  case 4:
-    return "call tensor_error";
-  default:
-    return "<unknow-inst>";
-  }
-}
+Number *TensorErrorInst::getNumber() { return number; }
+std::string TensorErrorInst::toStr() { return "call tensor-error " + number->toStr(); }
 
 SetInst::SetInst(Register *lval, Register *base, Register *offset, Number *scalar)
     : lval{lval}, base{base}, offset{offset}, scalar{scalar} {
   return;
 }
-std::string SetInst::getL2Inst() {
-  return lval->getL2Token() + " @ " + base->getL2Token() + " " + offset->getL2Token() + " " +
-         scalar->getL2Token();
-}
-std::string SetInst::getL1Inst() {
-  return "lea (" + base->getL1Token() + ", " + offset->getL1Token() + ", " +
-         scalar->getL1Token() + "), " + lval->getL1Token();
+Register *SetInst::getLval() { return lval; }
+Register *SetInst::getBase() { return base; }
+Register *SetInst::getOffset() { return offset; }
+Number *SetInst::getScalar() { return scalar; }
+std::string SetInst::toStr() {
+  return lval->toStr() + " @ " + base->toStr() + " " + offset->toStr() + " " + scalar->toStr();
 }
 
 LabelInst::LabelInst(Label *label) : label{label} { return; }
-std::string LabelInst::getL2Inst() { return label->getL2Token(); }
-std::string LabelInst::getL1Inst() { return label->getL1Token() + ":"; }
+Label *LabelInst::getLabel() { return label; }
+std::string LabelInst::toStr() { return label->toStr(); }
 
 GotoInst::GotoInst(Label *label) : label{label} { return; }
-std::string GotoInst::getL2Inst() { return "goto " + label->getL2Token(); }
-std::string GotoInst::getL1Inst() { return "jmp " + label->getL1Token(); }
+Label *GotoInst::getLabel() { return label; }
+std::string GotoInst::toStr() { return "goto " + label->toStr(); }
 
 CondJumpInst::CondJumpInst(CompareOp *op, Item *lval, Item *rval, Label *label)
     : op{op}, lval{lval}, rval{rval}, label{label} {
   return;
 }
-std::string CondJumpInst::getL2Inst() {
-  return "cjump " + lval->getL2Token() + " " + op->getL2Token() + " " + rval->getL2Token() + " " +
-         label->getL2Token();
-}
-std::string CondJumpInst::getL1Inst() {
-  auto newCmpL = lval->getL1Token();
-  auto newCmpR = rval->getL1Token();
-  auto reversed = true;
-  if (dynamic_cast<Number *>(lval) && dynamic_cast<Number *>(rval)) {
-    auto cmpL = dynamic_cast<Number *>(lval);
-    auto cmpR = dynamic_cast<Number *>(rval);
-    // directly compare
-    if (op->getID() == CompareOpID::EQUAL && cmpL->getVal() == cmpR->getVal()) {
-      return "jmp " + label->getL1Token();
-    } else if (op->getID() == CompareOpID::LESS_EQUAL && cmpL->getVal() <= cmpR->getVal()) {
-      return "jmp " + label->getL1Token();
-    } else if (op->getID() == CompareOpID::LESS_THAN && cmpL->getVal() < cmpR->getVal()) {
-      return "jmp " + label->getL1Token();
-    } else {
-      // don't jump
-      return "";
-    }
-  } else if (dynamic_cast<Number *>(rval)) {
-    newCmpL = "$" + rval->getL1Token();
-    newCmpR = lval->getL1Token();
-    reversed = false;
-  } else if (dynamic_cast<Number *>(lval)) {
-    newCmpL = '$' + lval->getL1Token();
-    newCmpR = rval->getL1Token();
-  }
-  auto cmpInst = "cmpq " + newCmpL + ", " + newCmpR + "\n  ";
-
-  auto newOp = op->getL1Token();
-  if (reversed) {
-    if (op->getID() == CompareOpID::LESS_EQUAL) {
-      newOp = "ge";
-    } else if (op->getID() == CompareOpID::LESS_THAN) {
-      newOp = "g";
-    }
-  }
-  auto jmpInst = "j" + newOp + " " + label->getL1Token();
-  return cmpInst + jmpInst;
+Label *CondJumpInst::getLabel() { return label; }
+Item *CondJumpInst::getLval() { return lval; }
+Item *CondJumpInst::getRval() { return rval; }
+CompareOp *CondJumpInst::getOp() { return op; }
+std::string CondJumpInst::toStr() {
+  return "cjump " + lval->toStr() + " " + op->toStr() + " " + rval->toStr() + " " + label->toStr();
 }
 
-} // namespace L1
+const std::vector<Instruction *> &BasicBlock::getInstructions() { return instructions; }
+void BasicBlock::addInstruction(Instruction *inst) { instructions.push_back(inst); }
+const std::vector<BasicBlock *> &BasicBlock::getSuccessors() { return successors; }
+void BasicBlock::addSuccessor(BasicBlock *BB) { successors.push_back(BB); }
+const std::vector<BasicBlock *> &BasicBlock::getPredecessors() { return predecessors; }
+void BasicBlock::addPredecessor(BasicBlock *BB) { predecessors.push_back(BB); }
+Instruction *BasicBlock::getFirstInstruction() { return instructions.front(); }
+Instruction *BasicBlock::getTerminator() { return instructions.back(); }
+
+Function::Function(std::string name) : name{name.substr(1)} {
+  // start with an empty basic block
+  basicBlocks.push_back(new BasicBlock());
+  return;
+}
+std::string Function::getName() { return name; }
+int64_t Function::getParamNum() { return paramNum; }
+void Function::setParameters(int64_t parameters) { this->paramNum = parameters; }
+const std::vector<BasicBlock *> &Function::getBasicBlocks() { return basicBlocks; }
+void Function::addBasicBlock(BasicBlock *BB) { basicBlocks.push_back(BB); }
+BasicBlock *Function::getCurrBasicBlock() { return basicBlocks.back(); }
+
+std::string Program::getEntryPointLabel() { return entryPointLabel; }
+void Program::setEntryPointLabel(std::string label) { entryPointLabel = label.substr(1); }
+const std::vector<Function *> &Program::getFunctions() { return functions; }
+void Program::addFunction(Function *F) { functions.push_back(F); }
+Function *Program::getCurrFunction() { return functions.back(); }
+
+} // namespace L2

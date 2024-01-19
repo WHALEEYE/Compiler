@@ -1,3 +1,4 @@
+#include "L2.h"
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
@@ -7,17 +8,17 @@
 #include <code_generator.h>
 #include <parser.h>
 
-void print_help(char *progName) {
-  std::cerr << "Usage: " << progName
-            << " [-v] [-g 0|1] [-O 0|1|2] [-s] [-l] [-i] SOURCE" << std::endl;
+void printHelp(char *progName) {
+  std::cerr << "Usage: " << progName << " [-v] [-g 0|1] [-O 0|1|2] [-s] [-l] [-i] SOURCE"
+            << std::endl;
   return;
 }
 
 int main(int argc, char **argv) {
-  auto enable_code_generator = true;
-  auto spill_only = false;
-  auto interference_only = false;
-  auto liveness_only = false;
+  auto enableCodeGenerator = true;
+  auto spillOnly = false;
+  auto interferenceOnly = false;
+  auto livenessOnly = false;
   int32_t optLevel = 3;
 
   /*
@@ -25,7 +26,7 @@ int main(int argc, char **argv) {
    */
   auto verbose = false;
   if (argc < 2) {
-    print_help(argv[0]);
+    printHelp(argv[0]);
     return 1;
   }
   int32_t opt;
@@ -34,15 +35,15 @@ int main(int argc, char **argv) {
     switch (opt) {
 
     case 'l':
-      liveness_only = true;
+      livenessOnly = true;
       break;
 
     case 'i':
-      interference_only = true;
+      interferenceOnly = true;
       break;
 
     case 's':
-      spill_only = true;
+      spillOnly = true;
       break;
 
     case 'O':
@@ -50,7 +51,7 @@ int main(int argc, char **argv) {
       break;
 
     case 'g':
-      enable_code_generator = (strtoul(optarg, NULL, 0) == 0) ? false : true;
+      enableCodeGenerator = (strtoul(optarg, NULL, 0) == 0) ? false : true;
       break;
 
     case 'v':
@@ -58,7 +59,7 @@ int main(int argc, char **argv) {
       break;
 
     default:
-      print_help(argv[0]);
+      printHelp(argv[0]);
       return 1;
     }
   }
@@ -66,55 +67,55 @@ int main(int argc, char **argv) {
   /*
    * Parse the input file.
    */
-  L2::Program p;
+  L2::Program P;
 
-  if (spill_only) {
+  if (spillOnly) {
 
     /*
      * Parse an L2 function and the spill arguments.
      */
-    p = L2::parse_spill_file(argv[optind]);
+    P = L2::parseSpillFile(argv[optind]);
 
-  } else if (liveness_only) {
-
-    /*
-     * Parse an L2 function.
-     */
-    p = L2::parse_function_file(argv[optind]);
-
-  } else if (interference_only) {
+  } else if (livenessOnly) {
 
     /*
      * Parse an L2 function.
      */
-    p = L2::parse_function_file(argv[optind]);
+    P = L2::parseFunctionFile(argv[optind]);
+
+  } else if (interferenceOnly) {
+
+    /*
+     * Parse an L2 function.
+     */
+    P = L2::parseFunctionFile(argv[optind]);
 
   } else {
 
     /*
      * Parse the L2 program.
      */
-    p = L2::parse_file(argv[optind]);
+    P = L2::parseFile(argv[optind]);
   }
 
   if (verbose) {
-    if (p.entryPointLabel != "<none>")
-      std::cout << "(" << p.entryPointLabel << std::endl;
-    for (auto f : p.functions) {
-      std::cout << "  (" << f->name << "\n    " << f->parameters << "\n";
-      for (auto i : f->instructions) {
-        std::cout << "    " << i->getL2Inst() << std::endl;
-      }
+    std::cout << "(@" << P.getEntryPointLabel() << std::endl;
+    for (auto F : P.getFunctions()) {
+      std::cout << "  (@" << F->getName() << "\n    " << F->getParamNum() << "\n";
+
+      for (auto BB : F->getBasicBlocks())
+        for (auto I : BB->getInstructions())
+          std::cout << "    " << I->toStr() << std::endl;
+
       std::cout << "  )" << std::endl;
     }
-    if (p.entryPointLabel != "<none>")
-      std::cout << ")" << std::endl;
+    std::cout << ")" << std::endl;
   }
 
   /*
    * Special cases.
    */
-  if (spill_only) {
+  if (spillOnly) {
 
     /*
      * Spill.
@@ -132,7 +133,7 @@ int main(int argc, char **argv) {
   /*
    * Liveness test.
    */
-  if (liveness_only) {
+  if (livenessOnly) {
     // TODO
     return 0;
   }
@@ -140,7 +141,7 @@ int main(int argc, char **argv) {
   /*
    * Interference graph test.
    */
-  if (interference_only) {
+  if (interferenceOnly) {
     // TODO
     return 0;
   }
@@ -148,7 +149,7 @@ int main(int argc, char **argv) {
   /*
    * Generate the target code.
    */
-  if (enable_code_generator) {
+  if (enableCodeGenerator) {
     // TODO
   }
 

@@ -3,9 +3,9 @@
 #include <L2.h>
 
 namespace L2 {
-Program parse_file(char *fileName);
+Program parseFile(char *fileName);
 
-Program parse_spill_file(char *fileName);
+Program parseSpillFile(char *fileName);
 
-Program parse_function_file(char *fileName);
+Program parseFunctionFile(char *fileName);
 } // namespace L2
