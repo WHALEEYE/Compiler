@@ -1,12 +1,6 @@
 #pragma once
-#include <iostream>
+#include <string>
 
 extern bool debugEnabled;
 
-class DebugStream {
-public:
-  template <typename T> DebugStream &operator<<(const T &value);
-  typedef std::ostream &(*StreamManipulator)(std::ostream &);
-  DebugStream &operator<<(StreamManipulator manip);
-};
-extern DebugStream debug;
+void debug(std::string message);

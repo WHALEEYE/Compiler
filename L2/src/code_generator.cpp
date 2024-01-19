@@ -6,7 +6,7 @@ using namespace std;
 
 namespace L2 {
 
-class CodeGenerator : public L2::L2Visitor {
+class CodeGenerator : public L2::Visitor {
   void visit(Register *reg) override {
     // TODO
   }
@@ -86,12 +86,6 @@ class CodeGenerator : public L2::L2Visitor {
     // TODO
   }
   void visit(CondJumpInst *inst) override {
-    // TODO
-  }
-  void visit(Function *func) override {
-    // TODO
-  }
-  void visit(Program *prog) override {
     // TODO
   }
 };

@@ -1,18 +1,10 @@
 #include <helper.h>
 
+#include <iostream>
+
 bool debugEnabled = false;
 
-template <typename T> DebugStream &DebugStream::operator<<(const T &value) {
+void debug(std::string message) {
   if (debugEnabled)
-    std::cerr << "\033[33m" << value << "\033[0m";
-  return *this;
+    std::cerr << "\033[33m[DEBUG] " << message << "\033[0m" << std::endl;
 }
-
-typedef std::ostream &(*StreamManipulator)(std::ostream &);
-DebugStream &DebugStream::operator<<(StreamManipulator manip) {
-  if (debugEnabled)
-    manip(std::cerr);
-  return *this;
-}
-
-DebugStream debug;

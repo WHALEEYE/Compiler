@@ -1,15 +1,16 @@
-#include "L2.h"
+#include "liveness_analyzer.h"
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include <stdint.h>
 #include <unistd.h>
 
+#include <L2.h>
 #include <code_generator.h>
 #include <parser.h>
 
 void printHelp(char *progName) {
-  std::cerr << "Usage: " << progName << " [-v] [-g 0|1] [-O 0|1|2] [-s] [-l] [-i] SOURCE"
+  std::cerr << "Usage: " << progName << " [-v] [-g 0|1] [-O 0|1|2] [-s] [-l] [-i] [-d] SOURCE"
             << std::endl;
   return;
 }
@@ -31,7 +32,7 @@ int main(int argc, char **argv) {
   }
   int32_t opt;
   int64_t functionNumber = -1;
-  while ((opt = getopt(argc, argv, "vg:O:sli")) != -1) {
+  while ((opt = getopt(argc, argv, "vg:O:slid")) != -1) {
     switch (opt) {
 
     case 'l':
@@ -56,6 +57,10 @@ int main(int argc, char **argv) {
 
     case 'v':
       verbose = true;
+      break;
+
+    case 'd':
+      debugEnabled = true;
       break;
 
     default:
@@ -134,7 +139,7 @@ int main(int argc, char **argv) {
    * Liveness test.
    */
   if (livenessOnly) {
-    // TODO
+    L2::livenessAnalyze(P.getCurrFunction());
     return 0;
   }
 

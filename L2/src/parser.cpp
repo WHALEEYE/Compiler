@@ -430,8 +430,8 @@ template <> struct action<self_dec> {
 template <> struct action<mem_loc> {
   template <typename Input> static void apply(const Input &in, Program &P) {
     auto offset = (Number *)itemStack.pop();
-    auto reg = (Register *)itemStack.pop();
-    auto m = new MemoryLocation(reg, offset);
+    auto base = itemStack.pop();
+    auto m = new MemoryLocation(base, offset);
     itemStack.push(m);
   }
 };
@@ -491,7 +491,7 @@ template <> struct action<cmp_assign_inst> {
     auto cmpRval = itemStack.pop();
     auto op = (CompareOp *)itemStack.pop();
     auto cmpLval = itemStack.pop();
-    auto lval = (Register *)itemStack.pop();
+    auto lval = itemStack.pop();
     auto I = new CompareAssignInst(lval, op, cmpLval, cmpRval);
     auto currBB = P.getCurrFunction()->getCurrBasicBlock();
     currBB->addInstruction(I);
@@ -552,9 +552,9 @@ template <> struct action<tensor_error_inst> {
 template <> struct action<set_inst> {
   template <typename Input> static void apply(const Input &in, Program &P) {
     auto scalar = (Number *)itemStack.pop();
-    auto offset = (Register *)itemStack.pop();
-    auto base = (Register *)itemStack.pop();
-    auto lval = (Register *)itemStack.pop();
+    auto offset = itemStack.pop();
+    auto base = itemStack.pop();
+    auto lval = itemStack.pop();
     auto I = new SetInst(lval, base, offset, scalar);
     auto currBB = P.getCurrFunction()->getCurrBasicBlock();
     currBB->addInstruction(I);
