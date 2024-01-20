@@ -1,5 +1,5 @@
 #include <L2.h>
-#include <cstdio>
+#include <cstdint>
 #include <iostream>
 #include <liveness_analyzer.h>
 #include <map>
@@ -63,9 +63,9 @@ public:
   }
 
   void visit(ShiftInst *inst) {
-    deleting = true;
-    inst->getLval()->accept(*this);
+    // no need to delete lval, gonna be inserted anyway
     deleting = false;
+    inst->getLval()->accept(*this);
     inst->getRval()->accept(*this);
   }
 
@@ -103,8 +103,8 @@ public:
     deleting = false;
 
     inst->getCallee()->accept(*this);
+    
     auto argNum = inst->getArgNum()->getVal();
-
     auto args = Register::getArgRegisters(argNum);
     buffer.insert(args.begin(), args.end());
   }
@@ -113,7 +113,8 @@ public:
     auto callerSaved = Register::getCallerSavedRegisters();
     for (auto reg : callerSaved)
       buffer.erase(reg);
-    buffer.insert("rdi");
+    auto args = Register::getArgRegisters(1);
+    buffer.insert(args.begin(), args.end());
   }
 
   void visit(InputInst *inst) {
@@ -126,20 +127,27 @@ public:
     auto callerSaved = Register::getCallerSavedRegisters();
     for (auto reg : callerSaved)
       buffer.erase(reg);
-    buffer.insert("rdi");
-    buffer.insert("rsi");
+    auto args = Register::getArgRegisters(2);
+    buffer.insert(args.begin(), args.end());
   }
 
   void visit(TupleErrorInst *inst) {
     auto callerSaved = Register::getCallerSavedRegisters();
     for (auto reg : callerSaved)
       buffer.erase(reg);
+
+    auto args = Register::getArgRegisters(3);
+    buffer.insert(args.begin(), args.end());
   }
 
   void visit(TensorErrorInst *inst) {
     auto callerSaved = Register::getCallerSavedRegisters();
     for (auto reg : callerSaved)
       buffer.erase(reg);
+
+    int64_t argNum = inst->getArgNum()->getVal();
+    auto args = Register::getArgRegisters(argNum);
+    buffer.insert(args.begin(), args.end());
   }
 
   void visit(SetInst *inst) {

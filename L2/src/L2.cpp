@@ -1,5 +1,6 @@
 #include <L2.h>
 #include <cstdint>
+#include <unordered_set>
 #include <vector>
 
 namespace L2 {
@@ -31,6 +32,7 @@ std::unordered_set<std::string> Register::getCalleeSavedRegisters() {
   return {"r12", "r13", "r14", "r15", "rbp", "rbx"};
 }
 std::unordered_set<std::string> Register::getArgRegisters(int64_t num) {
+  num = std::min(num, (int64_t)6);
   std::vector<std::string> argRegs = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
   std::unordered_set<std::string> ret;
   for (int i = 0; i < num; i++)
@@ -156,9 +158,9 @@ void AllocateInst::accept(Visitor &visitor) { visitor.visit(this); }
 std::string TupleErrorInst::toStr() { return "call tuple-error 0"; }
 void TupleErrorInst::accept(Visitor &visitor) { visitor.visit(this); }
 
-TensorErrorInst::TensorErrorInst(Number *number) : number(number) { return; }
-Number *TensorErrorInst::getNumber() { return number; }
-std::string TensorErrorInst::toStr() { return "call tensor-error " + number->toStr(); }
+TensorErrorInst::TensorErrorInst(Number *argNum) : argNum(argNum) { return; }
+Number *TensorErrorInst::getArgNum() { return argNum; }
+std::string TensorErrorInst::toStr() { return "call tensor-error " + argNum->toStr(); }
 void TensorErrorInst::accept(Visitor &visitor) { visitor.visit(this); }
 
 SetInst::SetInst(Item *lval, Item *base, Item *offset, Number *scalar)
@@ -199,10 +201,12 @@ void CondJumpInst::accept(Visitor &visitor) { visitor.visit(this); }
 
 const std::vector<Instruction *> &BasicBlock::getInstructions() { return instructions; }
 void BasicBlock::addInstruction(Instruction *inst) { instructions.push_back(inst); }
-const std::vector<BasicBlock *> &BasicBlock::getSuccessors() { return successors; }
-void BasicBlock::addSuccessor(BasicBlock *BB) { successors.push_back(BB); }
-const std::vector<BasicBlock *> &BasicBlock::getPredecessors() { return predecessors; }
-void BasicBlock::addPredecessor(BasicBlock *BB) { predecessors.push_back(BB); }
+const std::unordered_set<BasicBlock *> &BasicBlock::getSuccessors() { return successors; }
+void BasicBlock::addSuccessor(BasicBlock *BB) { successors.insert(BB); }
+void BasicBlock::removeSuccessor(BasicBlock *BB) { successors.erase(BB); }
+const std::unordered_set<BasicBlock *> &BasicBlock::getPredecessors() { return predecessors; }
+void BasicBlock::addPredecessor(BasicBlock *BB) { predecessors.insert(BB); }
+void BasicBlock::removePredecessor(BasicBlock *BB) { predecessors.erase(BB); }
 Instruction *BasicBlock::getFirstInstruction() { return instructions.front(); }
 Instruction *BasicBlock::getTerminator() { return instructions.back(); }
 
@@ -217,11 +221,13 @@ void Function::setParameters(int64_t parameters) { this->paramNum = parameters; 
 const std::vector<BasicBlock *> &Function::getBasicBlocks() { return basicBlocks; }
 void Function::addBasicBlock(BasicBlock *BB) { basicBlocks.push_back(BB); }
 BasicBlock *Function::getCurrBasicBlock() { return basicBlocks.back(); }
+void Function::popCurrBasicBlock() { basicBlocks.pop_back(); }
 
 std::string Program::getEntryPointLabel() { return entryPointLabel; }
 void Program::setEntryPointLabel(std::string label) { entryPointLabel = label.substr(1); }
 const std::vector<Function *> &Program::getFunctions() { return functions; }
 void Program::addFunction(Function *F) { functions.push_back(F); }
 Function *Program::getCurrFunction() { return functions.back(); }
+
 
 } // namespace L2

@@ -284,12 +284,12 @@ public:
 class TensorErrorInst : public Instruction {
 public:
   TensorErrorInst(Number *number);
-  Number *getNumber();
+  Number *getArgNum();
   std::string toStr() override;
   void accept(Visitor &visitor) override;
 
 private:
-  Number *number;
+  Number *argNum;
 };
 
 class SetInst : public Instruction {
@@ -355,17 +355,19 @@ class BasicBlock {
 public:
   const std::vector<Instruction *> &getInstructions();
   void addInstruction(Instruction *inst);
-  const std::vector<BasicBlock *> &getPredecessors();
+  const std::unordered_set<BasicBlock *> &getPredecessors();
   void addPredecessor(BasicBlock *BB);
-  const std::vector<BasicBlock *> &getSuccessors();
+  void removePredecessor(BasicBlock *BB);
+  const std::unordered_set<BasicBlock *> &getSuccessors();
   void addSuccessor(BasicBlock *BB);
+  void removeSuccessor(BasicBlock *BB);
   Instruction *getFirstInstruction();
   Instruction *getTerminator();
 
 private:
   std::vector<Instruction *> instructions;
-  std::vector<BasicBlock *> predecessors;
-  std::vector<BasicBlock *> successors;
+  std::unordered_set<BasicBlock *> predecessors;
+  std::unordered_set<BasicBlock *> successors;
 };
 
 class Function {
@@ -377,6 +379,7 @@ public:
   const std::vector<BasicBlock *> &getBasicBlocks();
   void addBasicBlock(BasicBlock *BB);
   BasicBlock *getCurrBasicBlock();
+  void popCurrBasicBlock();
 
 private:
   std::string name;

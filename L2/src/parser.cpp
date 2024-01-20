@@ -1,3 +1,4 @@
+#include "helper.h"
 #include "tao/pegtl/ascii.hpp"
 #include "tao/pegtl/internal/pegtl_string.hpp"
 #include "tao/pegtl/rules.hpp"
@@ -284,6 +285,10 @@ template <> struct action<ret> {
     auto I = new RetInst();
     auto currBB = P.getCurrFunction()->getCurrBasicBlock();
     currBB->addInstruction(I);
+
+    // next instruction is in a new BB, but is not a successor of currBB
+    auto newBB = new BasicBlock();
+    P.getCurrFunction()->addBasicBlock(newBB);
   }
 };
 
@@ -438,6 +443,7 @@ template <> struct action<mem_loc> {
 
 template <> struct action<stack_loc> {
   template <typename Input> static void apply(const Input &in, Program &P) {
+    debug("parsing stack_loc");
     auto offset = (Number *)itemStack.pop();
     auto s = new StackLocation(offset);
     itemStack.push(s);
@@ -446,6 +452,7 @@ template <> struct action<stack_loc> {
 
 template <> struct action<shift_inst> {
   template <typename Input> static void apply(const Input &in, Program &P) {
+    debug("parsing shift_inst");
     auto rval = itemStack.pop();
     auto op = (ShiftOp *)itemStack.pop();
     auto lval = itemStack.pop();
@@ -457,6 +464,7 @@ template <> struct action<shift_inst> {
 
 template <> struct action<arith_inst> {
   template <typename Input> static void apply(const Input &in, Program &P) {
+    debug("parsing arith_inst");
     auto rval = itemStack.pop();
     auto op = (ArithOp *)itemStack.pop();
     auto lval = itemStack.pop();
@@ -468,6 +476,7 @@ template <> struct action<arith_inst> {
 
 template <> struct action<self_mod_inst> {
   template <typename Input> static void apply(const Input &in, Program &P) {
+    debug("parsing self_mod_inst");
     auto op = (SelfModOp *)itemStack.pop();
     auto lval = itemStack.pop();
     auto I = new SelfModInst(op, lval);
@@ -478,6 +487,7 @@ template <> struct action<self_mod_inst> {
 
 template <> struct action<norm_assign_inst> {
   template <typename Input> static void apply(const Input &in, Program &P) {
+    debug("parsing norm_assign_inst");
     auto rval = itemStack.pop();
     auto lval = itemStack.pop();
     auto I = new AssignInst(lval, rval);
@@ -488,6 +498,7 @@ template <> struct action<norm_assign_inst> {
 
 template <> struct action<cmp_assign_inst> {
   template <typename Input> static void apply(const Input &in, Program &P) {
+    debug("parsing cmp_assign_inst");
     auto cmpRval = itemStack.pop();
     auto op = (CompareOp *)itemStack.pop();
     auto cmpLval = itemStack.pop();
@@ -500,6 +511,7 @@ template <> struct action<cmp_assign_inst> {
 
 template <> struct action<call_inst> {
   template <typename Input> static void apply(const Input &in, Program &P) {
+    debug("parsing call_inst");
     auto argNum = (Number *)itemStack.pop();
     auto callee = itemStack.pop();
     auto I = new CallInst(callee, argNum);
@@ -510,6 +522,7 @@ template <> struct action<call_inst> {
 
 template <> struct action<print_inst> {
   template <typename Input> static void apply(const Input &in, Program &P) {
+    debug("parsing print_inst");
     auto I = new PrintInst();
     auto currBB = P.getCurrFunction()->getCurrBasicBlock();
     currBB->addInstruction(I);
@@ -518,6 +531,7 @@ template <> struct action<print_inst> {
 
 template <> struct action<input_inst> {
   template <typename Input> static void apply(const Input &in, Program &P) {
+    debug("parsing input_inst");
     auto I = new InputInst();
     auto currBB = P.getCurrFunction()->getCurrBasicBlock();
     currBB->addInstruction(I);
@@ -526,6 +540,7 @@ template <> struct action<input_inst> {
 
 template <> struct action<allocate_inst> {
   template <typename Input> static void apply(const Input &in, Program &P) {
+    debug("parsing allocate_inst");
     auto I = new AllocateInst();
     auto currBB = P.getCurrFunction()->getCurrBasicBlock();
     currBB->addInstruction(I);
@@ -534,23 +549,34 @@ template <> struct action<allocate_inst> {
 
 template <> struct action<tuple_error_inst> {
   template <typename Input> static void apply(const Input &in, Program &P) {
+    debug("parsing tuple_error_inst");
     auto I = new TupleErrorInst();
     auto currBB = P.getCurrFunction()->getCurrBasicBlock();
     currBB->addInstruction(I);
+
+    // act like return, new BB
+    auto newBB = new BasicBlock();
+    P.getCurrFunction()->addBasicBlock(newBB);
   }
 };
 
 template <> struct action<tensor_error_inst> {
   template <typename Input> static void apply(const Input &in, Program &P) {
+    debug("parsing tensor_error_inst");
     auto number = (Number *)itemStack.pop();
     auto I = new TensorErrorInst(number);
     auto currBB = P.getCurrFunction()->getCurrBasicBlock();
     currBB->addInstruction(I);
+
+    // act like return, new BB
+    auto newBB = new BasicBlock();
+    P.getCurrFunction()->addBasicBlock(newBB);
   }
 };
 
 template <> struct action<set_inst> {
   template <typename Input> static void apply(const Input &in, Program &P) {
+    debug("parsing set_inst");
     auto scalar = (Number *)itemStack.pop();
     auto offset = itemStack.pop();
     auto base = itemStack.pop();
@@ -563,6 +589,7 @@ template <> struct action<set_inst> {
 
 template <> struct action<label_inst> {
   template <typename Input> static void apply(const Input &in, Program &P) {
+    debug("parsing label_inst");
     auto label = new Label(in.string());
     auto I = new LabelInst(label);
 
@@ -583,6 +610,7 @@ template <> struct action<label_inst> {
 
 template <> struct action<goto_inst> {
   template <typename Input> static void apply(const Input &in, Program &P) {
+    debug("parsing goto_inst");
     auto label = (Label *)itemStack.pop();
     auto I = new GotoInst(label);
     auto currBB = P.getCurrFunction()->getCurrBasicBlock();
@@ -596,6 +624,7 @@ template <> struct action<goto_inst> {
 
 template <> struct action<cjump_inst> {
   template <typename Input> static void apply(const Input &in, Program &P) {
+    debug("parsing cjump_inst");
     auto label = (Label *)itemStack.pop();
     auto rval = itemStack.pop();
     auto op = (CompareOp *)itemStack.pop();
@@ -612,30 +641,38 @@ template <> struct action<cjump_inst> {
   }
 };
 
-void linkBasicBlocks(Program &P) {
+void linkBasicBlocks(Function *F) {
+  debug("Started linking basic blocks.");
+
+  // emit empty basic blocks that may at the end of the func
+  auto lastBB = F->getCurrBasicBlock();
+  if (lastBB->getInstructions().empty()) {
+    for (auto pred : lastBB->getPredecessors())
+      pred->removeSuccessor(lastBB);
+    F->popCurrBasicBlock();
+  }
+
   std::map<std::string, BasicBlock *> labelToBB;
   // find all basic blocks that starts with a label
   // these BBs may have predecessors that are not linked yet
-  for (auto &F : P.getFunctions())
-    for (auto &BB : F->getBasicBlocks())
-      if (auto inst = dynamic_cast<LabelInst *>(BB->getFirstInstruction()))
-        labelToBB[inst->getLabel()->getName()] = BB;
+  for (auto &BB : F->getBasicBlocks())
+    if (auto inst = dynamic_cast<LabelInst *>(BB->getFirstInstruction()))
+      labelToBB[inst->getLabel()->getName()] = BB;
 
   // link all basic blocks
-  for (auto &F : P.getFunctions())
-    for (auto &BB : F->getBasicBlocks()) {
-      if (auto inst = dynamic_cast<GotoInst *>(BB->getTerminator())) {
-        auto label = inst->getLabel();
-        auto targetBB = labelToBB[label->getName()];
-        BB->addSuccessor(targetBB);
-        targetBB->addPredecessor(BB);
-      } else if (auto inst = dynamic_cast<CondJumpInst *>(BB->getTerminator())) {
-        auto label = inst->getLabel();
-        auto targetBB = labelToBB[label->getName()];
-        BB->addSuccessor(targetBB);
-        targetBB->addPredecessor(BB);
-      }
+  for (auto &BB : F->getBasicBlocks()) {
+    if (auto inst = dynamic_cast<GotoInst *>(BB->getTerminator())) {
+      auto label = inst->getLabel();
+      auto targetBB = labelToBB[label->getName()];
+      BB->addSuccessor(targetBB);
+      targetBB->addPredecessor(BB);
+    } else if (auto inst = dynamic_cast<CondJumpInst *>(BB->getTerminator())) {
+      auto label = inst->getLabel();
+      auto targetBB = labelToBB[label->getName()];
+      BB->addSuccessor(targetBB);
+      targetBB->addPredecessor(BB);
     }
+  }
 }
 
 Program parseFile(char *fileName) {
@@ -654,7 +691,8 @@ Program parseFile(char *fileName) {
   file_input<> fileInput(fileName);
   Program P;
   parse<grammar, action>(fileInput, P);
-  linkBasicBlocks(P);
+  for (auto F : P.getFunctions())
+    linkBasicBlocks(F);
   return P;
 }
 
@@ -678,7 +716,8 @@ Program parseFunctionFile(char *fileName) {
   Program P;
   P.setEntryPointLabel("@<PHONY>");
   parse<function, action>(fileInput, P);
-  linkBasicBlocks(P);
+  for (auto F : P.getFunctions())
+    linkBasicBlocks(F);
   return P;
 }
 
