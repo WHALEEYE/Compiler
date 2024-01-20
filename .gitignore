@@ -5,53 +5,44 @@
 !/L1
 /L1/*
 !/L1/src
-!/L1/compile_commands.json
 !/L1/.clang-format
 
 !/L2
 /L2/*
 !/L2/src
-!/L2/compile_commands.json
 !/L2/.clang-format
 
 !/L3
 /L3/*
 !/L3/src
-!/L3/compile_commands.json
 !/L3/.clang-format
 
 !/LA
 /LA/*
 !/LA/src
-!/LA/compile_commands.json
 !/LA/.clang-format
 
 !/LB
 /LB/*
 !/LB/src
-!/LB/compile_commands.json
 !/LB/.clang-format
 
 !/LC
 /LC/*
 !/LC/src
-!/LC/compile_commands.json
 !/LC/.clang-format
 
 !/LD
 /LD/*
 !/LD/src
-!/LD/compile_commands.json
 !/LD/.clang-format
 
 !/C
 /C/*
 !/C/src
-!/C/compile_commands.json
 !/C/.clang-format
 
 !/IR
 /IR/*
 !/IR/src
-!/IR/compile_commands.json
 !/IR/.clang-format
