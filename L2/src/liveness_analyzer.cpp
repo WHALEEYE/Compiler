@@ -1,4 +1,5 @@
 #include <L2.h>
+#include <algorithm>
 #include <cstdint>
 #include <iostream>
 #include <liveness_analyzer.h>
@@ -7,7 +8,7 @@
 #include <unordered_set>
 
 namespace L2 {
-typedef std::unordered_set<std::string> LivenessSet;
+typedef std::unordered_set<Symbol *> LivenessSet;
 
 bool setEqual(LivenessSet &a, LivenessSet &b) {
   if (a.size() != b.size())
@@ -30,16 +31,16 @@ public:
   void visit(Register *reg) {
     debug("visiting register " + reg->toStr());
     if (deleting)
-      buffer.erase(reg->toStr());
-    else if (reg->getID() != RegisterID::RSP)
-      buffer.insert(reg->toStr());
+      buffer.erase(reg);
+    else if (reg != Register::getRegister(Register::ID::RSP))
+      buffer.insert(reg);
   }
   void visit(Variable *var) {
     debug("visiting variable " + var->toStr());
     if (deleting)
-      buffer.erase(var->toStr());
+      buffer.erase(var);
     else
-      buffer.insert(var->toStr());
+      buffer.insert(var);
   }
   void visit(Number *num) {}
   void visit(CompareOp *op) {}
@@ -57,8 +58,8 @@ public:
   void visit(FunctionName *name) {}
   void visit(Label *label) {}
   void visit(RetInst *inst) {
-    buffer.insert("rax");
-    auto calleeSaved = Register::getCalleeSavedRegisters();
+    buffer.insert(Register::getRegister(Register::ID::RAX));
+    auto &calleeSaved = Register::getCalleeSavedRegisters();
     buffer.insert(calleeSaved.begin(), calleeSaved.end());
   }
 
@@ -97,57 +98,61 @@ public:
   }
 
   void visit(CallInst *inst) {
-    auto callerSaved = Register::getCallerSavedRegisters();
+    auto &callerSaved = Register::getCallerSavedRegisters();
     for (auto reg : callerSaved)
       buffer.erase(reg);
     deleting = false;
 
     inst->getCallee()->accept(*this);
-    
+
     auto argNum = inst->getArgNum()->getVal();
-    auto args = Register::getArgRegisters(argNum);
-    buffer.insert(args.begin(), args.end());
+    auto &args = Register::getArgRegisters();
+    for (int i = 0; i < std::min(argNum, (int64_t)6); i++)
+      buffer.insert(args[i]);
   }
 
   void visit(PrintInst *inst) {
-    auto callerSaved = Register::getCallerSavedRegisters();
+    auto &callerSaved = Register::getCallerSavedRegisters();
     for (auto reg : callerSaved)
       buffer.erase(reg);
-    auto args = Register::getArgRegisters(1);
-    buffer.insert(args.begin(), args.end());
+    auto &args = Register::getArgRegisters();
+    buffer.insert(args[0]);
   }
 
   void visit(InputInst *inst) {
-    auto callerSaved = Register::getCallerSavedRegisters();
+    auto &callerSaved = Register::getCallerSavedRegisters();
     for (auto reg : callerSaved)
       buffer.erase(reg);
   }
 
   void visit(AllocateInst *inst) {
-    auto callerSaved = Register::getCallerSavedRegisters();
+    auto &callerSaved = Register::getCallerSavedRegisters();
     for (auto reg : callerSaved)
       buffer.erase(reg);
-    auto args = Register::getArgRegisters(2);
-    buffer.insert(args.begin(), args.end());
+    auto &args = Register::getArgRegisters();
+    for (int i = 0; i < 2; i++)
+      buffer.insert(args[i]);
   }
 
   void visit(TupleErrorInst *inst) {
-    auto callerSaved = Register::getCallerSavedRegisters();
+    auto &callerSaved = Register::getCallerSavedRegisters();
     for (auto reg : callerSaved)
       buffer.erase(reg);
 
-    auto args = Register::getArgRegisters(3);
-    buffer.insert(args.begin(), args.end());
+    auto &args = Register::getArgRegisters();
+    for (int i = 0; i < 3; i++)
+      buffer.insert(args[i]);
   }
 
   void visit(TensorErrorInst *inst) {
-    auto callerSaved = Register::getCallerSavedRegisters();
+    auto &callerSaved = Register::getCallerSavedRegisters();
     for (auto reg : callerSaved)
       buffer.erase(reg);
 
     int64_t argNum = inst->getArgNum()->getVal();
-    auto args = Register::getArgRegisters(argNum);
-    buffer.insert(args.begin(), args.end());
+    auto &args = Register::getArgRegisters();
+    for (int i = 0; i < argNum; i++)
+      buffer.insert(args[i]);
   }
 
   void visit(SetInst *inst) {
@@ -184,7 +189,7 @@ void printResult(Function *F) {
     for (auto I : BB->getInstructions()) {
       std::cout << "(";
       for (auto pV = info[I].IN.begin(); pV != info[I].IN.end();) {
-        std::cout << *pV;
+        std::cout << (*pV)->toStr();
         if (++pV != info[I].IN.end())
           std::cout << " ";
       }
@@ -197,7 +202,7 @@ void printResult(Function *F) {
     for (auto I : BB->getInstructions()) {
       std::cout << "(";
       for (auto pV = info[I].OUT.begin(); pV != info[I].OUT.end();) {
-        std::cout << *pV;
+        std::cout << (*pV)->toStr();
         if (++pV != info[I].OUT.end())
           std::cout << " ";
       }

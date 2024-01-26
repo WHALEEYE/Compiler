@@ -104,9 +104,9 @@ int main(int argc, char **argv) {
   }
 
   if (verbose) {
-    std::cout << "(@" << P.getEntryPointLabel() << std::endl;
+    std::cout << "(" << P.getEntryPointLabel() << std::endl;
     for (auto F : P.getFunctions()) {
-      std::cout << "  (@" << F->getName() << "\n    " << F->getParamNum() << "\n";
+      std::cout << "  (" << F->getName() << "\n    " << F->getParamNum() << "\n";
 
       for (auto BB : F->getBasicBlocks())
         for (auto I : BB->getInstructions())

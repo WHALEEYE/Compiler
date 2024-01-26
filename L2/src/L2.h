@@ -1,21 +1,12 @@
 #pragma once
 
-#include <string>
-#include <vector>
-#include <unordered_set>
 #include <helper.h>
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
 namespace L2 {
-
-enum RegisterID { R8, R9, R10, R11, R12, R13, R14, R15, RAX, RBX, RCX, RDX, RDI, RSI, RBP, RSP };
-
-enum CompareOpID { LESS_THAN, LESS_EQUAL, EQUAL };
-
-enum ShiftOpID { LEFT, RIGHT };
-
-enum ArithOpID { ADD, SUB, MUL, AND };
-
-enum SelfModOpID { INC, DEC };
 
 class Visitor;
 
@@ -25,34 +16,47 @@ public:
   virtual void accept(Visitor &visitor) = 0;
 };
 
-class Register : public Item {
+class Value : public Item {};
+
+class Symbol : public Value {
 public:
-  Register(RegisterID id);
-  RegisterID getID();
-  std::string toStr() override;
-  void accept(Visitor &visitor) override;
+  Symbol(std::string name);
   std::string getName();
-  std::string get8BitName();
-  static std::unordered_set<std::string> getCallerSavedRegisters();
-  static std::unordered_set<std::string> getCalleeSavedRegisters();
-  static std::unordered_set<std::string> getArgRegisters(int64_t num);
 
-private:
-  RegisterID id;
-};
-
-class Variable : public Item {
-public:
-  Variable(std::string name);
-  std::string getName();
-  std::string toStr() override;
-  void accept(Visitor &visitor) override;
-
-private:
+protected:
   std::string name;
 };
 
-class Number : public Item {
+class Register : public Symbol {
+public:
+  enum ID { R8, R9, R10, R11, R12, R13, R14, R15, RAX, RBX, RCX, RDX, RDI, RSI, RBP, RSP };
+  static Register *getRegister(ID id);
+
+  std::string toStr() override;
+  void accept(Visitor &visitor) override;
+  std::string getName8Bit();
+  static const std::unordered_set<Register *> &getCallerSavedRegisters();
+  static const std::unordered_set<Register *> &getCalleeSavedRegisters();
+  static const std::vector<Register *> &getArgRegisters();
+
+private:
+  Register(std::string name, std::string name8Bit);
+  static const std::unordered_map<ID, Register *> enumMap;
+
+  std::string name8Bit;
+  static const std::unordered_set<Register *> callerSavedRegisters;
+  static const std::unordered_set<Register *> calleeSavedRegisters;
+  static const std::vector<Register *> argRegisters;
+};
+
+class Variable : public Symbol {
+public:
+  Variable(std::string name);
+  std::string toStr() override;
+  void accept(Visitor &visitor) override;
+};
+
+class Number : public Value {
 public:
   Number(int64_t val);
   int64_t getVal();
@@ -65,46 +69,66 @@ private:
 
 class CompareOp : public Item {
 public:
-  CompareOp(CompareOpID id);
-  CompareOpID getID();
+  enum ID { LESS_THAN, LESS_EQUAL, EQUAL };
+  static CompareOp *getCompareOp(ID id);
+
+  std::string getName();
   std::string toStr() override;
   void accept(Visitor &visitor) override;
 
 private:
-  CompareOpID id;
+  CompareOp(std::string name);
+  static const std::unordered_map<ID, CompareOp *> enumMap;
+
+  std::string name;
 };
 
 class ShiftOp : public Item {
 public:
-  ShiftOp(ShiftOpID id);
-  ShiftOpID getID();
+  enum ID { LEFT, RIGHT };
+  static ShiftOp *getShiftOp(ID id);
+
+  std::string getName();
   std::string toStr() override;
   void accept(Visitor &visitor) override;
 
 private:
-  ShiftOpID id;
+  ShiftOp(std::string name);
+  static const std::unordered_map<ID, ShiftOp *> enumMap;
+
+  std::string name;
 };
 
 class ArithOp : public Item {
 public:
-  ArithOp(ArithOpID id);
-  ArithOpID getID();
+  enum ID { ADD, SUB, MUL, AND };
+  static ArithOp *getArithOp(ID id);
+
+  std::string getName();
   std::string toStr() override;
   void accept(Visitor &visitor) override;
 
 private:
-  ArithOpID id;
+  ArithOp(std::string name);
+  static const std::unordered_map<ID, ArithOp *> enumMap;
+
+  std::string name;
 };
 
 class SelfModOp : public Item {
 public:
-  SelfModOp(SelfModOpID id);
-  SelfModOpID getID();
+  enum ID { INC, DEC };
+  static SelfModOp *getSelfModOp(ID id);
+
+  std::string getName();
   std::string toStr() override;
   void accept(Visitor &visitor) override;
 
 private:
-  SelfModOpID id;
+  SelfModOp(std::string name);
+  static const std::unordered_map<ID, SelfModOp *> enumMap;
+
+  std::string name;
 };
 
 class MemoryLocation : public Item {
@@ -173,17 +197,17 @@ public:
 
 class ShiftInst : public Instruction {
 public:
-  ShiftInst(ShiftOp *op, Item *lval, Item *rval);
+  ShiftInst(ShiftOp *op, Symbol *lval, Value *rval);
   ShiftOp *getOp();
-  Item *getLval();
-  Item *getRval();
+  Symbol *getLval();
+  Value *getRval();
   std::string toStr() override;
   void accept(Visitor &visitor) override;
 
 private:
   ShiftOp *op;
-  Item *lval;
-  Item *rval;
+  Symbol *lval;
+  Value *rval;
 };
 
 class ArithInst : public Instruction {
@@ -203,15 +227,15 @@ private:
 
 class SelfModInst : public Instruction {
 public:
-  SelfModInst(SelfModOp *op, Item *lval);
+  SelfModInst(SelfModOp *op, Symbol *lval);
   SelfModOp *getOp();
-  Item *getLval();
+  Symbol *getLval();
   std::string toStr() override;
   void accept(Visitor &visitor) override;
 
 private:
   SelfModOp *op;
-  Item *lval;
+  Symbol *lval;
 };
 
 class AssignInst : public Instruction {
@@ -229,19 +253,19 @@ private:
 
 class CompareAssignInst : public Instruction {
 public:
-  CompareAssignInst(Item *lval, CompareOp *op, Item *cmpLval, Item *cmpRval);
-  Item *getLval();
+  CompareAssignInst(Symbol *lval, CompareOp *op, Value *cmpLval, Value *cmpRval);
+  Symbol *getLval();
   CompareOp *getOp();
-  Item *getCmpLval();
-  Item *getCmpRval();
+  Value *getCmpLval();
+  Value *getCmpRval();
   std::string toStr() override;
   void accept(Visitor &visitor) override;
 
 private:
-  Item *lval;
+  Symbol *lval;
   CompareOp *op;
-  Item *cmpLval;
-  Item *cmpRval;
+  Value *cmpLval;
+  Value *cmpRval;
 };
 
 class CallInst : public Instruction {
@@ -294,18 +318,18 @@ private:
 
 class SetInst : public Instruction {
 public:
-  SetInst(Item *lval, Item *base, Item *offset, Number *scalar);
-  Item *getLval();
-  Item *getBase();
-  Item *getOffset();
+  SetInst(Symbol *lval, Symbol *base, Symbol *offset, Number *scalar);
+  Symbol *getLval();
+  Symbol *getBase();
+  Symbol *getOffset();
   Number *getScalar();
   std::string toStr() override;
   void accept(Visitor &visitor) override;
 
 private:
-  Item *lval;
-  Item *base;
-  Item *offset;
+  Symbol *lval;
+  Symbol *base;
+  Symbol *offset;
   Number *scalar;
 };
 
@@ -333,24 +357,35 @@ private:
 
 class CondJumpInst : public Instruction {
 public:
-  CondJumpInst(CompareOp *op, Item *lval, Item *rval, Label *label);
+  CondJumpInst(CompareOp *op, Value *lval, Value *rval, Label *label);
   CompareOp *getOp();
-  Item *getLval();
-  Item *getRval();
+  Value *getLval();
+  Value *getRval();
   Label *getLabel();
   std::string toStr() override;
   void accept(Visitor &visitor) override;
 
 private:
   CompareOp *op;
-  Item *lval;
-  Item *rval;
+  Value *lval;
+  Value *rval;
   Label *label;
 };
 
 /*
  * Structres.
  */
+
+class SymbolTable {
+public:
+  void addSymbol(std::string name, Item *item);
+  Item *getSymbol(std::string name);
+
+private:
+  std::unordered_map<std::string, Item *> table;
+  SymbolTable *parent;
+};
+
 class BasicBlock {
 public:
   const std::vector<Instruction *> &getInstructions();
@@ -380,11 +415,13 @@ public:
   void addBasicBlock(BasicBlock *BB);
   BasicBlock *getCurrBasicBlock();
   void popCurrBasicBlock();
+  Variable *getVariable(std::string name);
 
 private:
   std::string name;
   int64_t paramNum;
   std::vector<BasicBlock *> basicBlocks;
+  std::unordered_map<std::string, Variable *> variables;
 };
 
 class Program {

@@ -71,8 +71,8 @@ struct rdi : TAO_PEGTL_STRING("rdi") {};
 struct rsi : TAO_PEGTL_STRING("rsi") {};
 struct rsp : TAO_PEGTL_STRING("rsp") {};
 
-struct small : TAO_PEGTL_STRING("<") {};
-struct sm_eq : TAO_PEGTL_STRING("<=") {};
+struct less_than : TAO_PEGTL_STRING("<") {};
+struct less_equal : TAO_PEGTL_STRING("<=") {};
 struct equal : TAO_PEGTL_STRING("=") {};
 
 struct lshift : TAO_PEGTL_STRING("<<=") {};
@@ -101,69 +101,85 @@ struct cjump : TAO_PEGTL_STRING("cjump") {};
 
 struct stack_arg : TAO_PEGTL_STRING("stack-arg") {};
 
-struct number : seq<opt<sor<one<'-'>, one<'+'>>>, plus<digit>> {};
+// N ::= (+|-)?[1-9][0-9]* | 0
+struct N : seq<opt<sor<one<'-'>, one<'+'>>>, plus<digit>> {};
 
-struct param_num : number {};
+struct param_num : N {};
 
-struct offset_num : number {};
+// M ::= multiple of 8
+struct M : N {};
 
+// label ::= name
 struct label : seq<one<':'>, name> {};
 
-struct function_name : seq<one<'@'>, name> {};
+// I ::= @name    # function names
+struct I : seq<one<'@'>, name> {};
 
-struct var_name : seq<one<'%'>, name> {};
+// var ::= %name
+struct var : seq<one<'%'>, name> {};
 
-struct ref_func_name : function_name {};
+// sx ::= rcx | var
+struct sx : sor<var, rcx> {};
 
-struct shift_rval : sor<rcx, var_name, number> {};
+struct callee_func : I {};
 
-struct arg_regs : sor<rdi, rsi, rdx, shift_rval, r8, r9> {};
+// a ::= rdi | rsi | rdx | sx | r8 | r9   # argument registers
+struct a : sor<rdi, rsi, rdx, sx, r8, r9> {};
 
-struct usr_vars : sor<arg_regs, rax> {};
+// w ::= a | rax    # general purpose registers
+struct w : sor<a, rax> {};
 
-struct all_vars : sor<usr_vars, rsp> {};
+// x ::= w | rsp    # all registers
+struct x : sor<w, rsp> {};
 
-struct tensor_error_num : sor<one<'1'>, one<'3'>, one<'4'>> {};
+// F ::= 1 | 3 | 4    # tensor error parameter number
+struct F : sor<one<'1'>, one<'3'>, one<'4'>> {};
 
-struct scalar_num : sor<one<'1'>, one<'2'>, one<'4'>, one<'8'>> {};
+// E ::= 1 | 2 | 4 | 8    # scalar size
+struct E : sor<one<'1'>, one<'2'>, one<'4'>, one<'8'>> {};
 
 /*
  * Combined rules.
  */
-struct cmp_op : sor<sm_eq, small, equal> {};
+struct cmp_op : sor<less_equal, less_than, equal> {};
 
-struct shift_op : sor<lshift, rshift> {};
+// sop ::= <<= | =>>    # shift operators
+struct sop : sor<lshift, rshift> {};
 
-struct arith_op : sor<self_add, self_sub, self_mul, self_and> {};
+// aop ::= += | -= | *= | &=    # arithmetic operators
+struct aop : sor<self_add, self_sub, self_mul, self_and> {};
 
-struct callee : sor<ref_func_name, usr_vars> {};
+// u ::= w | I    # callee
+struct u : sor<callee_func, w> {};
 
-struct arith_rval : sor<all_vars, number> {};
+// t ::= x | N    # right value in arithmetic instructions
+struct t : sor<x, N> {};
 
-struct direct_val : sor<arith_rval, label, ref_func_name> {};
+// s ::= t | label | I    # can be used as right value in assignment instructions
+struct s : sor<t, label, callee_func> {};
 
-struct mem_loc : seq<mem, spaces, all_vars, spaces, offset_num> {};
+// mem_loc ::= mem x M    # memory location
+struct mem_loc : seq<mem, spaces, x, spaces, M> {};
 
-struct stack_loc : seq<stack_arg, spaces, offset_num> {};
+// stack_loc ::= stack-arg M    # stack location
+struct stack_loc : seq<stack_arg, spaces, M> {};
 
-struct shift_inst : seq<usr_vars, spaces, shift_op, spaces, shift_rval> {};
+struct shift_inst : seq<w, spaces, sop, spaces, sor<sx, N>> {};
 
-struct arith_inst : sor<seq<usr_vars, spaces, arith_op, spaces, arith_rval>,
-                        seq<mem_loc, spaces, sor<self_add, self_sub>, spaces, arith_rval>,
-                        seq<usr_vars, spaces, arith_op, spaces, mem_loc>> {};
+struct arith_inst
+    : sor<seq<w, spaces, aop, spaces, t>, seq<mem_loc, spaces, sor<self_add, self_sub>, spaces, t>,
+          seq<w, spaces, sor<self_add, self_sub>, spaces, mem_loc>> {};
 
-struct self_mod_inst : seq<usr_vars, spaces, sor<self_inc, self_dec>> {};
+struct self_mod_inst : seq<w, spaces, sor<self_inc, self_dec>> {};
 
-struct norm_assign_inst
-    : sor<seq<usr_vars, spaces, arrow, spaces, sor<direct_val, mem_loc, stack_loc>>,
-          seq<mem_loc, spaces, arrow, spaces, direct_val>> {};
+struct norm_assign_inst : sor<seq<w, spaces, arrow, spaces, sor<s, mem_loc, stack_loc>>,
+                              seq<mem_loc, spaces, arrow, spaces, s>> {};
 
-struct cmp_assign_inst
-    : seq<usr_vars, spaces, arrow, spaces, arith_rval, spaces, cmp_op, spaces, arith_rval> {};
+struct cmp_assign_inst : seq<w, spaces, arrow, spaces, t, spaces, cmp_op, spaces, t> {};
 
 struct assign_inst : sor<cmp_assign_inst, norm_assign_inst> {};
 
-struct call_inst : seq<call, spaces, callee, spaces, number> {};
+struct call_inst : seq<call, spaces, u, spaces, N> {};
 
 struct print_inst : seq<call, spaces, print, spaces, one<'1'>> {};
 
@@ -173,17 +189,15 @@ struct allocate_inst : seq<call, spaces, allocate, spaces, one<'2'>> {};
 
 struct tuple_error_inst : seq<call, spaces, tuple_error, spaces, one<'3'>> {};
 
-struct tensor_error_inst : seq<call, spaces, tensor_error, spaces, tensor_error_num> {};
+struct tensor_error_inst : seq<call, spaces, tensor_error, spaces, F> {};
 
-struct set_inst
-    : seq<usr_vars, spaces, one<'@'>, spaces, usr_vars, spaces, usr_vars, spaces, scalar_num> {};
+struct set_inst : seq<w, spaces, one<'@'>, spaces, w, spaces, w, spaces, E> {};
 
 struct label_inst : label {};
 
 struct goto_inst : seq<goto_str, spaces, label> {};
 
-struct cjump_inst
-    : seq<cjump, spaces, arith_rval, spaces, cmp_op, spaces, arith_rval, spaces, label> {};
+struct cjump_inst : seq<cjump, spaces, t, spaces, cmp_op, spaces, t, spaces, label> {};
 
 struct instruction
     : sor<seq<at<ret>, ret>, seq<at<assign_inst>, assign_inst>, seq<at<label_inst>, label_inst>,
@@ -197,15 +211,15 @@ struct instruction
 
 struct instructions : plus<seq<seps, bol, spaces, instruction, seps>> {};
 
-struct function : seq<seq<spaces, one<'('>>, seps_with_comments, seq<spaces, function_name>,
-                      seps_with_comments, seq<spaces, param_num>, seps_with_comments, instructions,
-                      seps_with_comments, seq<spaces, one<')'>>> {};
+struct function : seq<seq<spaces, one<'('>>, seps_with_comments, seq<spaces, I>, seps_with_comments,
+                      seq<spaces, param_num>, seps_with_comments, instructions, seps_with_comments,
+                      seq<spaces, one<')'>>> {};
 
 struct functions : plus<seps_with_comments, function, seps_with_comments> {};
 
 struct entry_point
-    : seq<seps_with_comments, seq<spaces, one<'('>>, seps_with_comments, function_name,
-          seps_with_comments, functions, seps_with_comments, seq<spaces, one<')'>>, seps> {};
+    : seq<seps_with_comments, seq<spaces, one<'('>>, seps_with_comments, I, seps_with_comments,
+          functions, seps_with_comments, seq<spaces, one<')'>>, seps> {};
 
 struct grammar : must<entry_point> {};
 
@@ -214,14 +228,14 @@ struct grammar : must<entry_point> {};
  */
 template <typename Rule> struct action : nothing<Rule> {};
 
-template <> struct action<ref_func_name> {
+template <> struct action<callee_func> {
   template <typename Input> static void apply(const Input &in, Program &P) {
     auto n = new FunctionName(in.string());
     itemStack.push(n);
   }
 };
 
-template <> struct action<function_name> {
+template <> struct action<I> {
   template <typename Input> static void apply(const Input &in, Program &P) {
     auto name = in.string();
     if (P.getEntryPointLabel().empty()) {
@@ -233,14 +247,15 @@ template <> struct action<function_name> {
   }
 };
 
-template <> struct action<var_name> {
+template <> struct action<var> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto n = new Variable(in.string());
-    itemStack.push(n);
+    auto F = P.getCurrFunction();
+    auto var = F->getVariable(in.string());
+    itemStack.push(var);
   }
 };
 
-template <> struct action<number> {
+template <> struct action<N> {
   template <typename Input> static void apply(const Input &in, Program &P) {
     auto n = new Number(std::stoll(in.string()));
     itemStack.push(n);
@@ -255,7 +270,7 @@ template <> struct action<param_num> {
 };
 
 // offset number: multiple of 8
-template <> struct action<offset_num> {
+template <> struct action<M> {
   template <typename Input> static void apply(const Input &in, Program &P) {
     auto offset = std::stoll(in.string());
     if (offset % 8 != 0)
@@ -266,14 +281,14 @@ template <> struct action<offset_num> {
   }
 };
 
-template <> struct action<tensor_error_num> {
+template <> struct action<F> {
   template <typename Input> static void apply(const Input &in, Program &P) {
     auto n = new Number(std::stoll(in.string()));
     itemStack.push(n);
   }
 };
 
-template <> struct action<scalar_num> {
+template <> struct action<E> {
   template <typename Input> static void apply(const Input &in, Program &P) {
     auto n = new Number(std::stoll(in.string()));
     itemStack.push(n);
@@ -301,133 +316,133 @@ template <> struct action<label> {
 
 template <> struct action<r8> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto r = new Register(RegisterID::R8);
+    auto r = Register::getRegister(Register::ID::R8);
     itemStack.push(r);
   }
 };
 
 template <> struct action<r9> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto r = new Register(RegisterID::R9);
+    auto r = Register::getRegister(Register::ID::R9);
     itemStack.push(r);
   }
 };
 
 template <> struct action<rax> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto r = new Register(RegisterID::RAX);
+    auto r = Register::getRegister(Register::ID::RAX);
     itemStack.push(r);
   }
 };
 
 template <> struct action<rcx> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto r = new Register(RegisterID::RCX);
+    auto r = Register::getRegister(Register::ID::RCX);
     itemStack.push(r);
   }
 };
 
 template <> struct action<rdx> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto r = new Register(RegisterID::RDX);
+    auto r = Register::getRegister(Register::ID::RDX);
     itemStack.push(r);
   }
 };
 
 template <> struct action<rdi> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto r = new Register(RegisterID::RDI);
+    auto r = Register::getRegister(Register::ID::RDI);
     itemStack.push(r);
   }
 };
 
 template <> struct action<rsi> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto r = new Register(RegisterID::RSI);
+    auto r = Register::getRegister(Register::ID::RSI);
     itemStack.push(r);
   }
 };
 
 template <> struct action<rsp> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto r = new Register(RegisterID::RSP);
+    auto r = Register::getRegister(Register::ID::RSP);
     itemStack.push(r);
   }
 };
 
-template <> struct action<small> {
+template <> struct action<less_than> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto cmp = new CompareOp(CompareOpID::LESS_THAN);
-    itemStack.push(cmp);
+    auto op = CompareOp::getCompareOp(CompareOp::ID::LESS_THAN);
+    itemStack.push(op);
   }
 };
 
-template <> struct action<sm_eq> {
+template <> struct action<less_equal> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto cmp = new CompareOp(CompareOpID::LESS_EQUAL);
-    itemStack.push(cmp);
+    auto op = CompareOp::getCompareOp(CompareOp::ID::LESS_EQUAL);
+    itemStack.push(op);
   }
 };
 
 template <> struct action<equal> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto cmp = new CompareOp(CompareOpID::EQUAL);
-    itemStack.push(cmp);
+    auto op = CompareOp::getCompareOp(CompareOp::ID::EQUAL);
+    itemStack.push(op);
   }
 };
 
 template <> struct action<lshift> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto op = new ShiftOp(ShiftOpID::LEFT);
+    auto op = ShiftOp::getShiftOp(ShiftOp::ID::LEFT);
     itemStack.push(op);
   }
 };
 
 template <> struct action<rshift> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto op = new ShiftOp(ShiftOpID::RIGHT);
+    auto op = ShiftOp::getShiftOp(ShiftOp::ID::RIGHT);
     itemStack.push(op);
   }
 };
 
 template <> struct action<self_add> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto op = new ArithOp(ArithOpID::ADD);
+    auto op = ArithOp::getArithOp(ArithOp::ID::ADD);
     itemStack.push(op);
   }
 };
 
 template <> struct action<self_sub> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto op = new ArithOp(ArithOpID::SUB);
+    auto op = ArithOp::getArithOp(ArithOp::ID::SUB);
     itemStack.push(op);
   }
 };
 
 template <> struct action<self_mul> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto op = new ArithOp(ArithOpID::MUL);
+    auto op = ArithOp::getArithOp(ArithOp::ID::MUL);
     itemStack.push(op);
   }
 };
 
 template <> struct action<self_and> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto op = new ArithOp(ArithOpID::AND);
+    auto op = ArithOp::getArithOp(ArithOp::ID::AND);
     itemStack.push(op);
   }
 };
 
 template <> struct action<self_inc> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto op = new SelfModOp(SelfModOpID::INC);
+    auto op = SelfModOp::getSelfModOp(SelfModOp::ID::INC);
     itemStack.push(op);
   }
 };
 
 template <> struct action<self_dec> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto op = new SelfModOp(SelfModOpID::DEC);
+    auto op = SelfModOp::getSelfModOp(SelfModOp::ID::DEC);
     itemStack.push(op);
   }
 };
@@ -453,9 +468,9 @@ template <> struct action<stack_loc> {
 template <> struct action<shift_inst> {
   template <typename Input> static void apply(const Input &in, Program &P) {
     debug("parsing shift_inst");
-    auto rval = itemStack.pop();
+    auto rval = (Value *)itemStack.pop();
     auto op = (ShiftOp *)itemStack.pop();
-    auto lval = itemStack.pop();
+    auto lval = (Symbol *)itemStack.pop();
     auto I = new ShiftInst(op, lval, rval);
     auto currBB = P.getCurrFunction()->getCurrBasicBlock();
     currBB->addInstruction(I);
@@ -478,7 +493,7 @@ template <> struct action<self_mod_inst> {
   template <typename Input> static void apply(const Input &in, Program &P) {
     debug("parsing self_mod_inst");
     auto op = (SelfModOp *)itemStack.pop();
-    auto lval = itemStack.pop();
+    auto lval = (Symbol *)itemStack.pop();
     auto I = new SelfModInst(op, lval);
     auto currBB = P.getCurrFunction()->getCurrBasicBlock();
     currBB->addInstruction(I);
@@ -499,10 +514,10 @@ template <> struct action<norm_assign_inst> {
 template <> struct action<cmp_assign_inst> {
   template <typename Input> static void apply(const Input &in, Program &P) {
     debug("parsing cmp_assign_inst");
-    auto cmpRval = itemStack.pop();
+    auto cmpRval = (Value *)itemStack.pop();
     auto op = (CompareOp *)itemStack.pop();
-    auto cmpLval = itemStack.pop();
-    auto lval = itemStack.pop();
+    auto cmpLval = (Value *)itemStack.pop();
+    auto lval = (Symbol *)itemStack.pop();
     auto I = new CompareAssignInst(lval, op, cmpLval, cmpRval);
     auto currBB = P.getCurrFunction()->getCurrBasicBlock();
     currBB->addInstruction(I);
@@ -578,9 +593,9 @@ template <> struct action<set_inst> {
   template <typename Input> static void apply(const Input &in, Program &P) {
     debug("parsing set_inst");
     auto scalar = (Number *)itemStack.pop();
-    auto offset = itemStack.pop();
-    auto base = itemStack.pop();
-    auto lval = itemStack.pop();
+    auto offset = (Symbol *)itemStack.pop();
+    auto base = (Symbol *)itemStack.pop();
+    auto lval = (Symbol *)itemStack.pop();
     auto I = new SetInst(lval, base, offset, scalar);
     auto currBB = P.getCurrFunction()->getCurrBasicBlock();
     currBB->addInstruction(I);
@@ -626,9 +641,9 @@ template <> struct action<cjump_inst> {
   template <typename Input> static void apply(const Input &in, Program &P) {
     debug("parsing cjump_inst");
     auto label = (Label *)itemStack.pop();
-    auto rval = itemStack.pop();
+    auto rval = (Value *)itemStack.pop();
     auto op = (CompareOp *)itemStack.pop();
-    auto lval = itemStack.pop();
+    auto lval = (Value *)itemStack.pop();
     auto I = new CondJumpInst(op, lval, rval, label);
     auto currBB = P.getCurrFunction()->getCurrBasicBlock();
     currBB->addInstruction(I);
