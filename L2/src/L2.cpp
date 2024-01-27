@@ -111,6 +111,15 @@ void Label::accept(Visitor &visitor) { visitor.visit(this); }
 /*
  *  Instructions.
  */
+const LivenessSet &Instruction::getIN() { return IN; }
+void Instruction::setIN(LivenessSet &IN) { this->IN = IN; }
+const LivenessSet &Instruction::getOUT() { return OUT; }
+void Instruction::setOUT(LivenessSet &OUT) { this->OUT = OUT; }
+const LivenessSet &Instruction::getGEN() { return GEN; }
+void Instruction::setGEN(LivenessSet &GEN) { this->GEN = GEN; }
+const LivenessSet &Instruction::getKILL() { return KILL; }
+void Instruction::setKILL(LivenessSet &KILL) { this->KILL = KILL; }
+
 std::string RetInst::toStr() { return "return"; }
 void RetInst::accept(Visitor &visitor) { visitor.visit(this); }
 

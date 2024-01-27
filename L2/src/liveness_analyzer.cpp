@@ -1,16 +1,14 @@
-#include <L2.h>
-#include <algorithm>
-#include <cstdint>
 #include <iostream>
-#include <liveness_analyzer.h>
 #include <map>
 #include <queue>
 #include <unordered_set>
 
-namespace L2 {
-typedef std::unordered_set<Symbol *> LivenessSet;
+#include <L2.h>
+#include <liveness_analyzer.h>
 
-bool setEqual(LivenessSet &a, LivenessSet &b) {
+namespace L2 {
+
+bool setEqual(const LivenessSet &a, const LivenessSet &b) {
   if (a.size() != b.size())
     return false;
 
@@ -21,176 +19,15 @@ bool setEqual(LivenessSet &a, LivenessSet &b) {
   return true;
 }
 
-class LivenessInfo {
-public:
-  LivenessSet IN, OUT;
-};
-
-class LivenessAnalyzer : public Visitor {
-public:
-  void visit(Register *reg) {
-    debug("visiting register " + reg->toStr());
-    if (deleting)
-      buffer.erase(reg);
-    else if (reg != Register::getRegister(Register::ID::RSP))
-      buffer.insert(reg);
-  }
-  void visit(Variable *var) {
-    debug("visiting variable " + var->toStr());
-    if (deleting)
-      buffer.erase(var);
-    else
-      buffer.insert(var);
-  }
-  void visit(Number *num) {}
-  void visit(CompareOp *op) {}
-  void visit(ShiftOp *op) {}
-  void visit(ArithOp *op) {}
-  void visit(SelfModOp *op) {}
-  void visit(MemoryLocation *mem) {
-    // no matter how mem loc is accessed, the base register is always brought alive
-    bool oldDeleting = deleting;
-    deleting = false;
-    mem->getBase()->accept(*this);
-    deleting = oldDeleting;
-  }
-  void visit(StackLocation *stack) {}
-  void visit(FunctionName *name) {}
-  void visit(Label *label) {}
-  void visit(RetInst *inst) {
-    buffer.insert(Register::getRegister(Register::ID::RAX));
-    auto &calleeSaved = Register::getCalleeSavedRegisters();
-    buffer.insert(calleeSaved.begin(), calleeSaved.end());
-  }
-
-  void visit(ShiftInst *inst) {
-    // no need to delete lval, gonna be inserted anyway
-    deleting = false;
-    inst->getLval()->accept(*this);
-    inst->getRval()->accept(*this);
-  }
-
-  void visit(ArithInst *inst) {
-    // no need to delete lval, gonna be inserted anyway
-    deleting = false;
-    inst->getLval()->accept(*this);
-    inst->getRval()->accept(*this);
-  }
-
-  void visit(SelfModInst *inst) {
-    deleting = false;
-    inst->getLval()->accept(*this);
-  }
-
-  void visit(AssignInst *inst) {
-    deleting = true;
-    inst->getLval()->accept(*this);
-    deleting = false;
-    inst->getRval()->accept(*this);
-  }
-
-  void visit(CompareAssignInst *inst) {
-    deleting = true;
-    inst->getLval()->accept(*this);
-    deleting = false;
-    inst->getCmpLval()->accept(*this);
-    inst->getCmpRval()->accept(*this);
-  }
-
-  void visit(CallInst *inst) {
-    auto &callerSaved = Register::getCallerSavedRegisters();
-    for (auto reg : callerSaved)
-      buffer.erase(reg);
-    deleting = false;
-
-    inst->getCallee()->accept(*this);
-
-    auto argNum = inst->getArgNum()->getVal();
-    auto &args = Register::getArgRegisters();
-    for (int i = 0; i < std::min(argNum, (int64_t)6); i++)
-      buffer.insert(args[i]);
-  }
-
-  void visit(PrintInst *inst) {
-    auto &callerSaved = Register::getCallerSavedRegisters();
-    for (auto reg : callerSaved)
-      buffer.erase(reg);
-    auto &args = Register::getArgRegisters();
-    buffer.insert(args[0]);
-  }
-
-  void visit(InputInst *inst) {
-    auto &callerSaved = Register::getCallerSavedRegisters();
-    for (auto reg : callerSaved)
-      buffer.erase(reg);
-  }
-
-  void visit(AllocateInst *inst) {
-    auto &callerSaved = Register::getCallerSavedRegisters();
-    for (auto reg : callerSaved)
-      buffer.erase(reg);
-    auto &args = Register::getArgRegisters();
-    for (int i = 0; i < 2; i++)
-      buffer.insert(args[i]);
-  }
-
-  void visit(TupleErrorInst *inst) {
-    auto &callerSaved = Register::getCallerSavedRegisters();
-    for (auto reg : callerSaved)
-      buffer.erase(reg);
-
-    auto &args = Register::getArgRegisters();
-    for (int i = 0; i < 3; i++)
-      buffer.insert(args[i]);
-  }
-
-  void visit(TensorErrorInst *inst) {
-    auto &callerSaved = Register::getCallerSavedRegisters();
-    for (auto reg : callerSaved)
-      buffer.erase(reg);
-
-    int64_t argNum = inst->getArgNum()->getVal();
-    auto &args = Register::getArgRegisters();
-    for (int i = 0; i < argNum; i++)
-      buffer.insert(args[i]);
-  }
-
-  void visit(SetInst *inst) {
-    deleting = true;
-    inst->getLval()->accept(*this);
-    deleting = false;
-    inst->getBase()->accept(*this);
-    inst->getOffset()->accept(*this);
-  }
-  void visit(LabelInst *inst) {}
-
-  void visit(GotoInst *inst) {}
-
-  void visit(CondJumpInst *inst) {
-    deleting = false;
-    inst->getLval()->accept(*this);
-    inst->getRval()->accept(*this);
-  }
-
-  void setBuffer(LivenessSet &buffer) { this->buffer = buffer; }
-  LivenessSet &getBuffer() { return buffer; }
-
-private:
-  LivenessSet buffer;
-  bool deleting = false;
-};
-
-std::map<Instruction *, LivenessInfo> info;
-LivenessAnalyzer analyzer;
-
 void printResult(Function *F) {
   std::cout << "(" << std::endl << "(in" << std::endl;
   for (auto BB : F->getBasicBlocks())
     for (auto I : BB->getInstructions()) {
+      auto &IN = I->getIN();
       std::cout << "(";
-      for (auto pV = info[I].IN.begin(); pV != info[I].IN.end();) {
+      for (auto pV = IN.begin(); pV != IN.end();) {
         std::cout << (*pV)->toStr();
-        if (++pV != info[I].IN.end())
+        if (++pV != IN.end())
           std::cout << " ";
       }
       std::cout << ")" << std::endl;
@@ -200,10 +37,11 @@ void printResult(Function *F) {
 
   for (auto BB : F->getBasicBlocks())
     for (auto I : BB->getInstructions()) {
+      auto &OUT = I->getOUT();
       std::cout << "(";
-      for (auto pV = info[I].OUT.begin(); pV != info[I].OUT.end();) {
+      for (auto pV = OUT.begin(); pV != OUT.end();) {
         std::cout << (*pV)->toStr();
-        if (++pV != info[I].OUT.end())
+        if (++pV != OUT.end())
           std::cout << " ";
       }
       std::cout << ")" << std::endl;
@@ -212,42 +50,42 @@ void printResult(Function *F) {
   std::cout << ")" << std::endl << std::endl << ")" << std::endl;
 }
 
-bool analyzeInBB(BasicBlock *BB) {
-  // if the last instruction of the BB is not in the map, then it's not analyzed before
-  bool first = info.find(BB->getTerminator()) == info.end();
+bool analyzeInBB(BasicBlock *BB, bool visited) {
   LivenessSet buffer;
   for (auto succ : BB->getSuccessors()) {
-    auto succInfo = info[succ->getFirstInstruction()];
-    buffer.insert(succInfo.IN.begin(), succInfo.IN.end());
+    auto &succIN = succ->getFirstInstruction()->getIN();
+    buffer.insert(succIN.begin(), succIN.end());
   }
-  if (!first && setEqual(buffer, info[BB->getTerminator()].OUT))
+  if (visited && setEqual(buffer, BB->getTerminator()->getOUT()))
     return false;
 
-  analyzer.setBuffer(buffer);
   for (auto pI = BB->getInstructions().rbegin(); pI != BB->getInstructions().rend(); pI++) {
     auto I = *pI;
-    info[I].OUT = analyzer.getBuffer();
-    I->accept(analyzer);
-    info[I].IN = analyzer.getBuffer();
+    I->setOUT(buffer);
+    auto &GEN = I->getGEN(), &KILL = I->getKILL();
+    for (auto var : KILL)
+      buffer.erase(var);
+    buffer.insert(GEN.begin(), GEN.end());
+    I->setIN(buffer);
   }
   return true;
 }
 
 void livenessAnalyze(Function *F) {
   std::queue<BasicBlock *> workq;
+  std::map<BasicBlock *, bool> visited;
   for (auto pB = F->getBasicBlocks().rbegin(); pB != F->getBasicBlocks().rend(); pB++)
     workq.push(*pB);
 
   while (!workq.empty()) {
     auto BB = workq.front();
     workq.pop();
-    if (analyzeInBB(BB)) {
+    if (analyzeInBB(BB, visited[BB])) {
       for (auto pred : BB->getPredecessors())
         workq.push(pred);
     }
+    visited[BB] = true;
   }
-
-  printResult(F);
 }
 
 } // namespace L2

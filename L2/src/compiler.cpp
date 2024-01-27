@@ -8,6 +8,7 @@
 #include <L2.h>
 #include <code_generator.h>
 #include <parser.h>
+#include <set_generator.h>
 
 void printHelp(char *progName) {
   std::cerr << "Usage: " << progName << " [-v] [-g 0|1] [-O 0|1|2] [-s] [-l] [-i] [-d] SOURCE"
@@ -103,6 +104,16 @@ int main(int argc, char **argv) {
     P = L2::parseFile(argv[optind]);
   }
 
+  /*
+   * BACKEND STARTS HERE
+   */
+  for (auto F : P.getFunctions()) {
+    // do set generation and liveness analysis on each function
+    // store the result into each instruction instance
+    L2::generateSet(F);
+    L2::livenessAnalyze(F);
+  }
+
   if (verbose) {
     std::cout << "(" << P.getEntryPointLabel() << std::endl;
     for (auto F : P.getFunctions()) {
@@ -139,7 +150,7 @@ int main(int argc, char **argv) {
    * Liveness test.
    */
   if (livenessOnly) {
-    L2::livenessAnalyze(P.getCurrFunction());
+    L2::printResult(P.getCurrFunction());
     return 0;
   }
 

@@ -177,6 +177,8 @@ private:
   std::string name;
 };
 
+typedef std::unordered_set<Symbol *> LivenessSet;
+
 /*
  * Instruction interface.
  */
@@ -184,6 +186,17 @@ class Instruction {
 public:
   virtual std::string toStr() = 0;
   virtual void accept(Visitor &visitor) = 0;
+  const LivenessSet &getIN();
+  void setIN(LivenessSet &IN);
+  const LivenessSet &getOUT();
+  void setOUT(LivenessSet &OUT);
+  const LivenessSet &getGEN();
+  void setGEN(LivenessSet &GEN);
+  const LivenessSet &getKILL();
+  void setKILL(LivenessSet &KILL);
+
+private:
+  LivenessSet IN, OUT, GEN, KILL;
 };
 
 /*
