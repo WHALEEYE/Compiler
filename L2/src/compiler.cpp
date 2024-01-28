@@ -148,7 +148,7 @@ int main(int argc, char **argv) {
    * Liveness test.
    */
   if (livenessOnly) {
-    livenessResult.printResult(P.getCurrFunction());
+    livenessResult.getFunctionResult(P.getCurrFunction()).dump();
     return 0;
   }
 

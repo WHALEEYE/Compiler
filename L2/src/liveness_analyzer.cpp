@@ -145,14 +145,14 @@ private:
   }
 };
 
-void calculateGenKill(Function *F, std::map<Instruction *, LivenessSets> &result) {
+void calculateGenKill(Function *F, FunctionLivenessResult &functionResult) {
+  auto &result = functionResult.result;
   auto calculator = GenKillCalculator::getInstance();
-  for (auto BB : F->getBasicBlocks())
-    for (auto I : BB->getInstructions()) {
-      calculator->doVisit(I);
-      result[I].GEN = calculator->getGEN();
-      result[I].KILL = calculator->getKILL();
-    }
+  for (auto I : functionResult.instBuffer) {
+    calculator->doVisit(I);
+    result[I].GEN = calculator->getGEN();
+    result[I].KILL = calculator->getKILL();
+  }
 }
 
 GenKillCalculator *GenKillCalculator::instance = nullptr;
@@ -162,33 +162,31 @@ const std::unordered_set<Symbol *> &LivenessSets::getKILL() const { return KILL;
 const std::unordered_set<Symbol *> &LivenessSets::getIN() const { return IN; }
 const std::unordered_set<Symbol *> &LivenessSets::getOUT() const { return OUT; }
 
-void LivenessResult::printResult(Function *F) const {
+void FunctionLivenessResult::dump() const {
   std::cout << "(" << std::endl << "(in" << std::endl;
-  for (auto BB : F->getBasicBlocks())
-    for (auto I : BB->getInstructions()) {
-      auto &IN = result.at(F).at(I).getIN();
-      std::cout << "(";
-      for (auto pV = IN.begin(); pV != IN.end();) {
-        std::cout << (*pV)->toStr();
-        if (++pV != IN.end())
-          std::cout << " ";
-      }
-      std::cout << ")" << std::endl;
+  for (auto I : instBuffer) {
+    auto &IN = result.at(I).getIN();
+    std::cout << "(";
+    for (auto pV = IN.begin(); pV != IN.end();) {
+      std::cout << (*pV)->toStr();
+      if (++pV != IN.end())
+        std::cout << " ";
     }
+    std::cout << ")" << std::endl;
+  }
 
   std::cout << ")" << std::endl << std::endl << "(out" << std::endl;
 
-  for (auto BB : F->getBasicBlocks())
-    for (auto I : BB->getInstructions()) {
-      auto &OUT = result.at(F).at(I).getOUT();
-      std::cout << "(";
-      for (auto pV = OUT.begin(); pV != OUT.end();) {
-        std::cout << (*pV)->toStr();
-        if (++pV != OUT.end())
-          std::cout << " ";
-      }
-      std::cout << ")" << std::endl;
+  for (auto I : instBuffer) {
+    auto &OUT = result.at(I).getOUT();
+    std::cout << "(";
+    for (auto pV = OUT.begin(); pV != OUT.end();) {
+      std::cout << (*pV)->toStr();
+      if (++pV != OUT.end())
+        std::cout << " ";
     }
+    std::cout << ")" << std::endl;
+  }
 
   std::cout << ")" << std::endl << std::endl << ")" << std::endl;
 }
@@ -204,9 +202,9 @@ bool setEqual(const std::unordered_set<Symbol *> &a, const std::unordered_set<Sy
   return true;
 }
 
-bool analyzeInBB(BasicBlock *BB, std::map<Instruction *, LivenessSets> &result, bool visited) {
+bool analyzeInBB(BasicBlock *BB, FunctionLivenessResult &functionResult, bool visited) {
   std::unordered_set<Symbol *> buffer;
-
+  auto &result = functionResult.result;
   for (auto succ : BB->getSuccessors()) {
     auto &succIN = result[succ->getFirstInstruction()].IN;
     buffer.insert(succIN.begin(), succIN.end());
@@ -227,11 +225,21 @@ bool analyzeInBB(BasicBlock *BB, std::map<Instruction *, LivenessSets> &result, 
   return true;
 }
 
+const FunctionLivenessResult &LivenessResult::getFunctionResult(Function *F) const {
+  return functionResults.at(F);
+}
+
 const LivenessResult &analyzeLiveness(Program &P) {
   auto livenessResult = new LivenessResult();
   for (auto F : P.getFunctions()) {
-    auto &result = livenessResult->result[F];
-    calculateGenKill(F, result);
+    auto &functionResult = livenessResult->functionResults[F];
+
+    // first, initialize the instBuffer
+    for (auto BB : F->getBasicBlocks())
+      for (auto I : BB->getInstructions())
+        functionResult.instBuffer.push_back(I);
+
+    calculateGenKill(F, functionResult);
 
     std::queue<BasicBlock *> workq;
     std::map<BasicBlock *, bool> visited;
@@ -241,10 +249,11 @@ const LivenessResult &analyzeLiveness(Program &P) {
     while (!workq.empty()) {
       auto BB = workq.front();
       workq.pop();
-      if (analyzeInBB(BB, result, visited[BB])) {
+
+      if (analyzeInBB(BB, functionResult, visited[BB]))
         for (auto pred : BB->getPredecessors())
           workq.push(pred);
-      }
+
       visited[BB] = true;
     }
   }
