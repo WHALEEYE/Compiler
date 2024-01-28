@@ -35,6 +35,7 @@ public:
   std::string toStr() override;
   void accept(Visitor &visitor) override;
   std::string getName8Bit();
+  static const std::unordered_set<Register *> &getAllRegisters();
   static const std::unordered_set<Register *> &getCallerSavedRegisters();
   static const std::unordered_set<Register *> &getCalleeSavedRegisters();
   static const std::vector<Register *> &getArgRegisters();
@@ -44,6 +45,7 @@ private:
   static const std::unordered_map<ID, Register *> enumMap;
 
   std::string name8Bit;
+  static const std::unordered_set<Register *> allRegisters;
   static const std::unordered_set<Register *> callerSavedRegisters;
   static const std::unordered_set<Register *> calleeSavedRegisters;
   static const std::vector<Register *> argRegisters;
@@ -177,8 +179,6 @@ private:
   std::string name;
 };
 
-typedef std::unordered_set<Symbol *> LivenessSet;
-
 /*
  * Instruction interface.
  */
@@ -186,17 +186,6 @@ class Instruction {
 public:
   virtual std::string toStr() = 0;
   virtual void accept(Visitor &visitor) = 0;
-  const LivenessSet &getIN();
-  void setIN(LivenessSet &IN);
-  const LivenessSet &getOUT();
-  void setOUT(LivenessSet &OUT);
-  const LivenessSet &getGEN();
-  void setGEN(LivenessSet &GEN);
-  const LivenessSet &getKILL();
-  void setKILL(LivenessSet &KILL);
-
-private:
-  LivenessSet IN, OUT, GEN, KILL;
 };
 
 /*

@@ -13,6 +13,7 @@ Register::Register(std::string name, std::string name8Bit) : Symbol(name), name8
 std::string Register::toStr() { return name; }
 void Register::accept(Visitor &visitor) { visitor.visit(this); }
 std::string Register::getName8Bit() { return name8Bit; }
+const std::unordered_set<Register *> &Register::getAllRegisters() { return allRegisters; }
 const std::unordered_set<Register *> &Register::getCallerSavedRegisters() {
   return callerSavedRegisters;
 }
@@ -31,6 +32,11 @@ const std::unordered_map<Register::ID, Register *> Register::enumMap = {
     {ID::RDI, new Register("rdi", "dil")},  {ID::RSI, new Register("rsi", "sil")},
     {ID::RBP, new Register("rbp", "bpl")},  {ID::RSP, new Register("rsp", "<unknown-token>")},
 };
+const std::unordered_set<Register *> Register::allRegisters = {
+    enumMap.at(ID::RAX), enumMap.at(ID::RBX), enumMap.at(ID::RCX), enumMap.at(ID::RDX),
+    enumMap.at(ID::RDI), enumMap.at(ID::RSI), enumMap.at(ID::RBP), enumMap.at(ID::RSP),
+    enumMap.at(ID::R8),  enumMap.at(ID::R9),  enumMap.at(ID::R10), enumMap.at(ID::R11),
+    enumMap.at(ID::R12), enumMap.at(ID::R13), enumMap.at(ID::R14), enumMap.at(ID::R15)};
 const std::unordered_set<Register *> Register::callerSavedRegisters = {
     enumMap.at(ID::RAX), enumMap.at(ID::RDI), enumMap.at(ID::RSI),
     enumMap.at(ID::RDX), enumMap.at(ID::RCX), enumMap.at(ID::R8),
@@ -111,15 +117,6 @@ void Label::accept(Visitor &visitor) { visitor.visit(this); }
 /*
  *  Instructions.
  */
-const LivenessSet &Instruction::getIN() { return IN; }
-void Instruction::setIN(LivenessSet &IN) { this->IN = IN; }
-const LivenessSet &Instruction::getOUT() { return OUT; }
-void Instruction::setOUT(LivenessSet &OUT) { this->OUT = OUT; }
-const LivenessSet &Instruction::getGEN() { return GEN; }
-void Instruction::setGEN(LivenessSet &GEN) { this->GEN = GEN; }
-const LivenessSet &Instruction::getKILL() { return KILL; }
-void Instruction::setKILL(LivenessSet &KILL) { this->KILL = KILL; }
-
 std::string RetInst::toStr() { return "return"; }
 void RetInst::accept(Visitor &visitor) { visitor.visit(this); }
 
