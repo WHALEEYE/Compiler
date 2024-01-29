@@ -9,11 +9,10 @@
 namespace L2 {
 
 class Visitor;
-class ProgramToSpill;
 
 class Item {
 public:
-  virtual std::string toStr() = 0;
+  virtual std::string toStr() const = 0;
   virtual void accept(Visitor &visitor) = 0;
 };
 
@@ -33,7 +32,7 @@ public:
   enum ID { R8, R9, R10, R11, R12, R13, R14, R15, RAX, RBX, RCX, RDX, RDI, RSI, RBP, RSP };
   static Register *getRegister(ID id);
 
-  std::string toStr() override;
+  std::string toStr() const override;
   void accept(Visitor &visitor) override;
   std::string getName8Bit();
   static const std::unordered_set<Register *> &getAllGPRegisters();
@@ -55,7 +54,7 @@ private:
 class Variable : public Symbol {
 public:
   Variable(std::string name);
-  std::string toStr() override;
+  std::string toStr() const override;
   void accept(Visitor &visitor) override;
 };
 
@@ -63,7 +62,7 @@ class Number : public Value {
 public:
   Number(int64_t val);
   int64_t getVal();
-  std::string toStr() override;
+  std::string toStr() const override;
   void accept(Visitor &visitor) override;
 
 private:
@@ -76,7 +75,7 @@ public:
   static CompareOp *getCompareOp(ID id);
 
   std::string getName();
-  std::string toStr() override;
+  std::string toStr() const override;
   void accept(Visitor &visitor) override;
 
 private:
@@ -92,7 +91,7 @@ public:
   static ShiftOp *getShiftOp(ID id);
 
   std::string getName();
-  std::string toStr() override;
+  std::string toStr() const override;
   void accept(Visitor &visitor) override;
 
 private:
@@ -108,7 +107,7 @@ public:
   static ArithOp *getArithOp(ID id);
 
   std::string getName();
-  std::string toStr() override;
+  std::string toStr() const override;
   void accept(Visitor &visitor) override;
 
 private:
@@ -124,7 +123,7 @@ public:
   static SelfModOp *getSelfModOp(ID id);
 
   std::string getName();
-  std::string toStr() override;
+  std::string toStr() const override;
   void accept(Visitor &visitor) override;
 
 private:
@@ -139,7 +138,7 @@ public:
   MemoryLocation(Symbol *base, Number *offset);
   Symbol *getBase();
   Number *getOffset();
-  std::string toStr() override;
+  std::string toStr() const override;
   void accept(Visitor &visitor) override;
 
 private:
@@ -151,7 +150,7 @@ class StackLocation : public Item {
 public:
   StackLocation(Number *offset);
   Number *getOffset();
-  std::string toStr() override;
+  std::string toStr() const override;
   void accept(Visitor &visitor) override;
 
 private:
@@ -162,7 +161,7 @@ class FunctionName : public Item {
 public:
   FunctionName(std::string name);
   std::string getName();
-  std::string toStr() override;
+  std::string toStr() const override;
   void accept(Visitor &visitor) override;
 
 private:
@@ -173,7 +172,7 @@ class Label : public Item {
 public:
   Label(std::string name);
   std::string getName();
-  std::string toStr() override;
+  std::string toStr() const override;
   void accept(Visitor &visitor) override;
 
 private:
@@ -185,7 +184,7 @@ private:
  */
 class Instruction {
 public:
-  virtual std::string toStr() = 0;
+  virtual std::string toStr() const = 0;
   virtual void accept(Visitor &visitor) = 0;
 };
 
@@ -194,7 +193,7 @@ public:
  */
 class RetInst : public Instruction {
 public:
-  std::string toStr() override;
+  std::string toStr() const override;
   void accept(Visitor &visitor) override;
 };
 
@@ -204,7 +203,7 @@ public:
   ShiftOp *getOp();
   Symbol *getLval();
   Value *getRval();
-  std::string toStr() override;
+  std::string toStr() const override;
   void accept(Visitor &visitor) override;
 
 private:
@@ -219,7 +218,7 @@ public:
   ArithOp *getOp();
   Item *getLval();
   Item *getRval();
-  std::string toStr() override;
+  std::string toStr() const override;
   void accept(Visitor &visitor) override;
 
 private:
@@ -233,7 +232,7 @@ public:
   SelfModInst(SelfModOp *op, Symbol *lval);
   SelfModOp *getOp();
   Symbol *getLval();
-  std::string toStr() override;
+  std::string toStr() const override;
   void accept(Visitor &visitor) override;
 
 private:
@@ -246,7 +245,7 @@ public:
   AssignInst(Item *lval, Item *rval);
   Item *getLval();
   Item *getRval();
-  std::string toStr() override;
+  std::string toStr() const override;
   void accept(Visitor &visitor) override;
 
 private:
@@ -261,7 +260,7 @@ public:
   CompareOp *getOp();
   Value *getCmpLval();
   Value *getCmpRval();
-  std::string toStr() override;
+  std::string toStr() const override;
   void accept(Visitor &visitor) override;
 
 private:
@@ -276,7 +275,7 @@ public:
   CallInst(Item *callee, Number *argNum);
   Item *getCallee();
   Number *getArgNum();
-  std::string toStr() override;
+  std::string toStr() const override;
   void accept(Visitor &visitor) override;
 
 private:
@@ -286,25 +285,25 @@ private:
 
 class PrintInst : public Instruction {
 public:
-  std::string toStr() override;
+  std::string toStr() const override;
   void accept(Visitor &visitor) override;
 };
 
 class InputInst : public Instruction {
 public:
-  std::string toStr() override;
+  std::string toStr() const override;
   void accept(Visitor &visitor) override;
 };
 
 class AllocateInst : public Instruction {
 public:
-  std::string toStr() override;
+  std::string toStr() const override;
   void accept(Visitor &visitor) override;
 };
 
 class TupleErrorInst : public Instruction {
 public:
-  std::string toStr() override;
+  std::string toStr() const override;
   void accept(Visitor &visitor) override;
 };
 
@@ -312,7 +311,7 @@ class TensorErrorInst : public Instruction {
 public:
   TensorErrorInst(Number *number);
   Number *getArgNum();
-  std::string toStr() override;
+  std::string toStr() const override;
   void accept(Visitor &visitor) override;
 
 private:
@@ -326,7 +325,7 @@ public:
   Symbol *getBase();
   Symbol *getOffset();
   Number *getScalar();
-  std::string toStr() override;
+  std::string toStr() const override;
   void accept(Visitor &visitor) override;
 
 private:
@@ -340,7 +339,7 @@ class LabelInst : public Instruction {
 public:
   LabelInst(Label *label);
   Label *getLabel();
-  std::string toStr() override;
+  std::string toStr() const override;
   void accept(Visitor &visitor) override;
 
 private:
@@ -351,7 +350,7 @@ class GotoInst : public Instruction {
 public:
   GotoInst(Label *label);
   Label *getLabel();
-  std::string toStr() override;
+  std::string toStr() const override;
   void accept(Visitor &visitor) override;
 
 private:
@@ -365,7 +364,7 @@ public:
   Value *getLval();
   Value *getRval();
   Label *getLabel();
-  std::string toStr() override;
+  std::string toStr() const override;
   void accept(Visitor &visitor) override;
 
 private:
@@ -407,7 +406,7 @@ private:
   std::unordered_set<BasicBlock *> predecessors;
   std::unordered_set<BasicBlock *> successors;
 
-friend void SpillProgram(ProgramToSpill *P);
+  friend void spillInBB(BasicBlock *BB);
 };
 
 class Function {
@@ -421,6 +420,7 @@ public:
   BasicBlock *getCurrBasicBlock();
   void popCurrBasicBlock();
   Variable *getVariable(std::string name);
+  bool hasVariable(std::string name);
 
 private:
   std::string name;

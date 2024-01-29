@@ -13,13 +13,13 @@ class FunctionLivenessResult;
 
 class LivenessSets {
 public:
-  const std::unordered_set<Symbol *> &getGEN() const;
-  const std::unordered_set<Symbol *> &getKILL() const;
-  const std::unordered_set<Symbol *> &getIN() const;
-  const std::unordered_set<Symbol *> &getOUT() const;
+  const std::unordered_set<const Symbol *> &getGEN() const;
+  const std::unordered_set<const Symbol *> &getKILL() const;
+  const std::unordered_set<const Symbol *> &getIN() const;
+  const std::unordered_set<const Symbol *> &getOUT() const;
 
 private:
-  std::unordered_set<Symbol *> GEN, KILL, IN, OUT;
+  std::unordered_set<const Symbol *> GEN, KILL, IN, OUT;
 
   friend const LivenessResult &analyzeLiveness(const Program *P);
   friend bool analyzeInBB(BasicBlock *BB, FunctionLivenessResult &result, bool visited);

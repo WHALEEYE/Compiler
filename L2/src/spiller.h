@@ -1,24 +1,25 @@
 #pragma once
 
 #include <L2.h>
+#include <liveness_analyzer.h>
 
 namespace L2 {
 
-class ProgramToSpill : public Program {
+class FunctionToSpill : public Function {
 public:
-  ProgramToSpill();
-  bool isSpilled() const;
+  FunctionToSpill(std::string name);
+  bool getSpilled() const;
   void setSpilled(bool spilled);
-  std::string getSpilledVar() const;
-  void setSpilledVar(std::string spilledVar);
+  const Variable *getSpilledVar() const;
+  void setSpilledVar(Variable *spilledVar);
   std::string getSpillPrefix() const;
   void setSpillPrefix(std::string spillPrefix);
 
 private:
-  std::string spilledVar;
+  Variable *spilledVar;
   std::string spillPrefix;
   bool spilled;
 };
 
-void SpillProgram(ProgramToSpill *P);
+void spillProgram(Program *P, const LivenessResult &livenessResult);
 } // namespace L2

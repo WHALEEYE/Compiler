@@ -10,7 +10,7 @@ Symbol::Symbol(std::string name) : name{name} {}
 std::string Symbol::getName() { return name; }
 
 Register::Register(std::string name, std::string name8Bit) : Symbol(name), name8Bit{name8Bit} {}
-std::string Register::toStr() { return name; }
+std::string Register::toStr() const { return name; }
 void Register::accept(Visitor &visitor) { visitor.visit(this); }
 std::string Register::getName8Bit() { return name8Bit; }
 const std::unordered_set<Register *> &Register::getAllGPRegisters() { return allGPRegisters; }
@@ -49,18 +49,18 @@ const std::vector<Register *> Register::argRegisters = {enumMap.at(ID::RDI), enu
                                                         enumMap.at(ID::R8),  enumMap.at(ID::R9)};
 
 Variable::Variable(std::string name) : Symbol(name) {}
-std::string Variable::toStr() { return name; }
+std::string Variable::toStr() const { return name; }
 void Variable::accept(Visitor &visitor) { visitor.visit(this); }
 
 Number::Number(int64_t val) : val{val} {}
 int64_t Number::getVal() { return val; }
-std::string Number::toStr() { return std::to_string(val); }
+std::string Number::toStr() const { return std::to_string(val); }
 void Number::accept(Visitor &visitor) { visitor.visit(this); }
 
 CompareOp::CompareOp(std::string name) : name{name} {}
 CompareOp *CompareOp::getCompareOp(ID id) { return enumMap.at(id); }
 std::string CompareOp::getName() { return name; }
-std::string CompareOp::toStr() { return name; }
+std::string CompareOp::toStr() const { return name; }
 void CompareOp::accept(Visitor &visitor) { visitor.visit(this); }
 const std::unordered_map<CompareOp::ID, CompareOp *> CompareOp::enumMap = {
     {ID::LESS_THAN, new CompareOp("<")},
@@ -70,7 +70,7 @@ const std::unordered_map<CompareOp::ID, CompareOp *> CompareOp::enumMap = {
 ShiftOp::ShiftOp(std::string name) : name{name} {}
 ShiftOp *ShiftOp::getShiftOp(ID id) { return enumMap.at(id); }
 std::string ShiftOp::getName() { return name; }
-std::string ShiftOp::toStr() { return name; }
+std::string ShiftOp::toStr() const { return name; }
 void ShiftOp::accept(Visitor &visitor) { visitor.visit(this); }
 const std::unordered_map<ShiftOp::ID, ShiftOp *> ShiftOp::enumMap = {
     {ID::LEFT, new ShiftOp("<<=")}, {ID::RIGHT, new ShiftOp(">>=")}};
@@ -78,7 +78,7 @@ const std::unordered_map<ShiftOp::ID, ShiftOp *> ShiftOp::enumMap = {
 ArithOp::ArithOp(std::string name) : name{name} {}
 ArithOp *ArithOp::getArithOp(ID id) { return enumMap.at(id); }
 std::string ArithOp::getName() { return name; }
-std::string ArithOp::toStr() { return name; }
+std::string ArithOp::toStr() const { return name; }
 void ArithOp::accept(Visitor &visitor) { visitor.visit(this); }
 const std::unordered_map<ArithOp::ID, ArithOp *> ArithOp::enumMap = {{ID::ADD, new ArithOp("+=")},
                                                                      {ID::SUB, new ArithOp("-=")},
@@ -88,7 +88,7 @@ const std::unordered_map<ArithOp::ID, ArithOp *> ArithOp::enumMap = {{ID::ADD, n
 SelfModOp::SelfModOp(std::string name) : name{name} {}
 SelfModOp *SelfModOp::getSelfModOp(ID id) { return enumMap.at(id); }
 std::string SelfModOp::getName() { return name; }
-std::string SelfModOp::toStr() { return name; }
+std::string SelfModOp::toStr() const { return name; }
 void SelfModOp::accept(Visitor &visitor) { visitor.visit(this); }
 const std::unordered_map<SelfModOp::ID, SelfModOp *> SelfModOp::enumMap = {
     {ID::INC, new SelfModOp("++")}, {ID::DEC, new SelfModOp("--")}};
@@ -96,54 +96,58 @@ const std::unordered_map<SelfModOp::ID, SelfModOp *> SelfModOp::enumMap = {
 MemoryLocation::MemoryLocation(Symbol *base, Number *offset) : base{base}, offset{offset} {}
 Symbol *MemoryLocation::getBase() { return base; }
 Number *MemoryLocation::getOffset() { return offset; }
-std::string MemoryLocation::toStr() { return "mem " + base->toStr() + " " + offset->toStr(); }
+std::string MemoryLocation::toStr() const { return "mem " + base->toStr() + " " + offset->toStr(); }
 void MemoryLocation::accept(Visitor &visitor) { visitor.visit(this); }
 
 StackLocation::StackLocation(Number *offset) : offset{offset} {}
 Number *StackLocation::getOffset() { return offset; }
-std::string StackLocation::toStr() { return "stack-arg " + offset->toStr(); }
+std::string StackLocation::toStr() const { return "stack-arg " + offset->toStr(); }
 void StackLocation::accept(Visitor &visitor) { visitor.visit(this); }
 
 FunctionName::FunctionName(std::string name) : name{name} {}
 std::string FunctionName::getName() { return name; }
-std::string FunctionName::toStr() { return name; }
+std::string FunctionName::toStr() const { return name; }
 void FunctionName::accept(Visitor &visitor) { visitor.visit(this); }
 
 Label::Label(std::string name) : name{name} {}
 std::string Label::getName() { return name; }
-std::string Label::toStr() { return name; }
+std::string Label::toStr() const { return name; }
 void Label::accept(Visitor &visitor) { visitor.visit(this); }
 
 /*
  *  Instructions.
  */
-std::string RetInst::toStr() { return "return"; }
+std::string RetInst::toStr() const { return "return"; }
 void RetInst::accept(Visitor &visitor) { visitor.visit(this); }
 
 ShiftInst::ShiftInst(ShiftOp *op, Symbol *lval, Value *rval) : op{op}, lval{lval}, rval{rval} {}
 ShiftOp *ShiftInst::getOp() { return op; }
 Symbol *ShiftInst::getLval() { return lval; }
 Value *ShiftInst::getRval() { return rval; }
-std::string ShiftInst::toStr() { return lval->toStr() + " " + op->toStr() + " " + rval->toStr(); }
+std::string ShiftInst::toStr() const {
+  return lval->toStr() + " " + op->toStr() + " " + rval->toStr();
+}
 void ShiftInst::accept(Visitor &visitor) { visitor.visit(this); }
 
 ArithInst::ArithInst(ArithOp *op, Item *lval, Item *rval) : op{op}, lval{lval}, rval{rval} {}
 ArithOp *ArithInst::getOp() { return op; }
 Item *ArithInst::getLval() { return lval; }
 Item *ArithInst::getRval() { return rval; }
-std::string ArithInst::toStr() { return lval->toStr() + " " + op->toStr() + " " + rval->toStr(); }
+std::string ArithInst::toStr() const {
+  return lval->toStr() + " " + op->toStr() + " " + rval->toStr();
+}
 void ArithInst::accept(Visitor &visitor) { visitor.visit(this); }
 
 SelfModInst::SelfModInst(SelfModOp *op, Symbol *lval) : op{op}, lval{lval} {}
 SelfModOp *SelfModInst::getOp() { return op; }
 Symbol *SelfModInst::getLval() { return lval; }
-std::string SelfModInst::toStr() { return lval->toStr() + op->toStr(); }
+std::string SelfModInst::toStr() const { return lval->toStr() + op->toStr(); }
 void SelfModInst::accept(Visitor &visitor) { visitor.visit(this); }
 
 AssignInst::AssignInst(Item *lval, Item *rval) : lval{lval}, rval{rval} {}
 Item *AssignInst::getLval() { return lval; }
 Item *AssignInst::getRval() { return rval; }
-std::string AssignInst::toStr() { return lval->toStr() + " <- " + rval->toStr(); }
+std::string AssignInst::toStr() const { return lval->toStr() + " <- " + rval->toStr(); }
 void AssignInst::accept(Visitor &visitor) { visitor.visit(this); }
 
 CompareAssignInst::CompareAssignInst(Symbol *lval, CompareOp *op, Value *cmpLval, Value *cmpRval)
@@ -152,7 +156,7 @@ Symbol *CompareAssignInst::getLval() { return lval; }
 CompareOp *CompareAssignInst::getOp() { return op; }
 Value *CompareAssignInst::getCmpLval() { return cmpLval; }
 Value *CompareAssignInst::getCmpRval() { return cmpRval; }
-std::string CompareAssignInst::toStr() {
+std::string CompareAssignInst::toStr() const {
   return lval->toStr() + " <- " + cmpLval->toStr() + " " + op->toStr() + " " + cmpRval->toStr();
 }
 void CompareAssignInst::accept(Visitor &visitor) { visitor.visit(this); }
@@ -160,24 +164,24 @@ void CompareAssignInst::accept(Visitor &visitor) { visitor.visit(this); }
 CallInst::CallInst(Item *callee, Number *argNum) : callee{callee}, argNum{argNum} {}
 Item *CallInst::getCallee() { return callee; }
 Number *CallInst::getArgNum() { return argNum; }
-std::string CallInst::toStr() { return "call " + callee->toStr() + " " + argNum->toStr(); }
+std::string CallInst::toStr() const { return "call " + callee->toStr() + " " + argNum->toStr(); }
 void CallInst::accept(Visitor &visitor) { visitor.visit(this); }
 
-std::string PrintInst::toStr() { return "call print 1"; }
+std::string PrintInst::toStr() const { return "call print 1"; }
 void PrintInst::accept(Visitor &visitor) { visitor.visit(this); }
 
-std::string InputInst::toStr() { return "call input 0"; }
+std::string InputInst::toStr() const { return "call input 0"; }
 void InputInst::accept(Visitor &visitor) { visitor.visit(this); }
 
-std::string AllocateInst::toStr() { return "call allocate 2"; }
+std::string AllocateInst::toStr() const { return "call allocate 2"; }
 void AllocateInst::accept(Visitor &visitor) { visitor.visit(this); }
 
-std::string TupleErrorInst::toStr() { return "call tuple-error 0"; }
+std::string TupleErrorInst::toStr() const { return "call tuple-error 0"; }
 void TupleErrorInst::accept(Visitor &visitor) { visitor.visit(this); }
 
 TensorErrorInst::TensorErrorInst(Number *argNum) : argNum(argNum) {}
 Number *TensorErrorInst::getArgNum() { return argNum; }
-std::string TensorErrorInst::toStr() { return "call tensor-error " + argNum->toStr(); }
+std::string TensorErrorInst::toStr() const { return "call tensor-error " + argNum->toStr(); }
 void TensorErrorInst::accept(Visitor &visitor) { visitor.visit(this); }
 
 SetInst::SetInst(Symbol *lval, Symbol *base, Symbol *offset, Number *scalar)
@@ -186,19 +190,19 @@ Symbol *SetInst::getLval() { return lval; }
 Symbol *SetInst::getBase() { return base; }
 Symbol *SetInst::getOffset() { return offset; }
 Number *SetInst::getScalar() { return scalar; }
-std::string SetInst::toStr() {
+std::string SetInst::toStr() const {
   return lval->toStr() + " @ " + base->toStr() + " " + offset->toStr() + " " + scalar->toStr();
 }
 void SetInst::accept(Visitor &visitor) { visitor.visit(this); }
 
 LabelInst::LabelInst(Label *label) : label{label} {}
 Label *LabelInst::getLabel() { return label; }
-std::string LabelInst::toStr() { return label->toStr(); }
+std::string LabelInst::toStr() const { return label->toStr(); }
 void LabelInst::accept(Visitor &visitor) { visitor.visit(this); }
 
 GotoInst::GotoInst(Label *label) : label{label} {}
 Label *GotoInst::getLabel() { return label; }
-std::string GotoInst::toStr() { return "goto " + label->toStr(); }
+std::string GotoInst::toStr() const { return "goto " + label->toStr(); }
 void GotoInst::accept(Visitor &visitor) { visitor.visit(this); }
 
 CondJumpInst::CondJumpInst(CompareOp *op, Value *lval, Value *rval, Label *label)
@@ -207,7 +211,7 @@ Label *CondJumpInst::getLabel() { return label; }
 Value *CondJumpInst::getLval() { return lval; }
 Value *CondJumpInst::getRval() { return rval; }
 CompareOp *CondJumpInst::getOp() { return op; }
-std::string CondJumpInst::toStr() {
+std::string CondJumpInst::toStr() const {
   return "cjump " + lval->toStr() + " " + op->toStr() + " " + rval->toStr() + " " + label->toStr();
 }
 void CondJumpInst::accept(Visitor &visitor) { visitor.visit(this); }
@@ -239,6 +243,7 @@ Variable *Function::getVariable(std::string name) {
     variables[name] = new Variable(name);
   return variables[name];
 }
+bool Function::hasVariable(std::string name) { return variables.find(name) != variables.end(); }
 
 std::string Program::getEntryPointLabel() const { return entryPointLabel; }
 void Program::setEntryPointLabel(std::string label) { entryPointLabel = label; }

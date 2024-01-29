@@ -1,4 +1,3 @@
-#include "spiller.h"
 #include <iostream>
 #include <vector>
 
@@ -117,6 +116,8 @@ struct label : seq<one<':'>, name> {};
 // I ::= @name    # function names
 struct I : seq<one<'@'>, name> {};
 
+struct spilled_func_name : I {};
+
 // var ::= %name
 struct var : seq<one<'%'>, name> {};
 
@@ -220,11 +221,15 @@ struct function : seq<seq<spaces, one<'('>>, seps_with_comments, seq<spaces, I>,
                       seq<spaces, param_num>, seps_with_comments, instructions, seps_with_comments,
                       seq<spaces, one<')'>>> {};
 
+struct spilled_func : seq<seq<spaces, one<'('>>, seps_with_comments, seq<spaces, spilled_func_name>,
+                          seps_with_comments, seq<spaces, param_num>, seps_with_comments,
+                          instructions, seps_with_comments, seq<spaces, one<')'>>> {};
+
 struct functions : plus<seps_with_comments, function, seps_with_comments> {};
 
 struct func_only : seq<seps_with_comments, function, seps_with_comments> {};
 
-struct spill_func : seq<seps_with_comments, function, seps_with_comments, spilled_var,
+struct spill_prog : seq<seps_with_comments, spilled_func, seps_with_comments, spilled_var,
                         seps_with_comments, spill_prefix, seps_with_comments> {};
 
 struct entry_point
@@ -235,7 +240,7 @@ struct grammar : must<entry_point> {};
 
 struct func_grammar : must<func_only> {};
 
-struct spill_grammar : must<spill_func> {};
+struct spill_grammar : must<spill_prog> {};
 
 /*
  * Actions attached to grammar rules.
@@ -261,6 +266,13 @@ template <> struct action<I> {
   }
 };
 
+template <> struct action<spilled_func_name> {
+  template <typename Input> static void apply(const Input &in, Program &P) {
+    auto newF = new FunctionToSpill(in.string());
+    P.addFunction(newF);
+  }
+};
+
 template <> struct action<var> {
   template <typename Input> static void apply(const Input &in, Program &P) {
     auto F = P.getCurrFunction();
@@ -271,15 +283,19 @@ template <> struct action<var> {
 
 template <> struct action<spilled_var> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto &prog = *((ProgramToSpill *)(&P));
-    prog.setSpilledVar(in.string());
+    auto spilledF = (FunctionToSpill *)P.getCurrFunction();
+    auto spilledVar = in.string();
+    if (spilledF->hasVariable(spilledVar))
+      spilledF->setSpilledVar(spilledF->getVariable(spilledVar));
+    else
+      spilledF->setSpilledVar(nullptr);
   }
 };
 
 template <> struct action<spill_prefix> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto &prog = *((ProgramToSpill *)(&P));
-    prog.setSpillPrefix(in.string());
+    auto spilledF = (FunctionToSpill *)P.getCurrFunction();
+    spilledF->setSpillPrefix(in.string());
   }
 };
 
@@ -739,14 +755,14 @@ Program *parseFile(char *fileName) {
   return P;
 }
 
-ProgramToSpill *parseSpillFile(char *fileName) {
+Program *parseSpillFile(char *fileName) {
   if (analyze<spill_grammar>() != 0) {
     std::cerr << "There are problems with the grammar" << std::endl;
     exit(1);
   }
 
   file_input<> fileInput(fileName);
-  auto P = new ProgramToSpill();
+  auto P = new Program();
   parse<spill_grammar, action>(fileInput, *P);
   return P;
 }

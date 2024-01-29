@@ -1,4 +1,3 @@
-#include "spiller.h"
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
@@ -10,6 +9,7 @@
 #include <interference_analyzer.h>
 #include <liveness_analyzer.h>
 #include <parser.h>
+#include <spiller.h>
 
 void printHelp(char *progName) {
   std::cerr << "Usage: " << progName << " [-v] [-g 0|1] [-O 0|1|2] [-s] [-l] [-i] [-d] SOURCE"
@@ -137,12 +137,12 @@ int main(int argc, char **argv) {
     /*
      * Spill.
      */
-    auto prog = (L2::ProgramToSpill *)P;
-    L2::SpillProgram(prog);
+    L2::spillProgram(P, livenessResult);
 
     for (auto F : P->getFunctions()) {
-      std::cout << "(" << F->getName() << "\n\t" << F->getParamNum() << " "
-                << (prog->isSpilled() ? 1 : 0) << "\n";
+      auto spilledF = (L2::FunctionToSpill *)F;
+      std::cout << "(" << spilledF->getName() << "\n\t" << spilledF->getParamNum() << " "
+                << (spilledF->getSpilled() ? 1 : 0) << "\n";
 
       for (auto BB : F->getBasicBlocks())
         for (auto I : BB->getInstructions())

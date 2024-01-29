@@ -46,20 +46,24 @@ public:
   }
 
   void visit(ShiftInst *inst) {
-    // no need to delete lval, gonna be inserted anyway
+    now = &KILL;
+    inst->getLval()->accept(*this);
     now = &GEN;
     inst->getLval()->accept(*this);
     inst->getRval()->accept(*this);
   }
 
   void visit(ArithInst *inst) {
-    // no need to delete lval, gonna be inserted anyway
+    now = &KILL;
+    inst->getLval()->accept(*this);
     now = &GEN;
     inst->getLval()->accept(*this);
     inst->getRval()->accept(*this);
   }
 
   void visit(SelfModInst *inst) {
+    now = &KILL;
+    inst->getLval()->accept(*this);
     now = &GEN;
     inst->getLval()->accept(*this);
   }
@@ -124,11 +128,11 @@ public:
     I->accept(*this);
   }
 
-  std::unordered_set<Symbol *> &getGEN() { return GEN; }
-  std::unordered_set<Symbol *> &getKILL() { return KILL; }
+  std::unordered_set<const Symbol *> &getGEN() { return GEN; }
+  std::unordered_set<const Symbol *> &getKILL() { return KILL; }
 
 private:
-  std::unordered_set<Symbol *> GEN, KILL, *now;
+  std::unordered_set<const Symbol *> GEN, KILL, *now;
 
   GenKillCalculator(){};
   static GenKillCalculator *instance;
@@ -157,10 +161,10 @@ void calculateGenKill(Function *F, FunctionLivenessResult &functionResult) {
 
 GenKillCalculator *GenKillCalculator::instance = nullptr;
 
-const std::unordered_set<Symbol *> &LivenessSets::getGEN() const { return GEN; }
-const std::unordered_set<Symbol *> &LivenessSets::getKILL() const { return KILL; }
-const std::unordered_set<Symbol *> &LivenessSets::getIN() const { return IN; }
-const std::unordered_set<Symbol *> &LivenessSets::getOUT() const { return OUT; }
+const std::unordered_set<const Symbol *> &LivenessSets::getGEN() const { return GEN; }
+const std::unordered_set<const Symbol *> &LivenessSets::getKILL() const { return KILL; }
+const std::unordered_set<const Symbol *> &LivenessSets::getIN() const { return IN; }
+const std::unordered_set<const Symbol *> &LivenessSets::getOUT() const { return OUT; }
 
 void FunctionLivenessResult::dump() const {
   std::cout << "(" << std::endl << "(in" << std::endl;
@@ -193,7 +197,7 @@ const LivenessSets &FunctionLivenessResult::getLivenessSets(Instruction *I) cons
   return result.at(I);
 }
 
-bool setEqual(const std::unordered_set<Symbol *> &a, const std::unordered_set<Symbol *> &b) {
+bool setEqual(const std::unordered_set<const Symbol *> &a, const std::unordered_set<const Symbol *> &b) {
   if (a.size() != b.size())
     return false;
 
@@ -205,7 +209,7 @@ bool setEqual(const std::unordered_set<Symbol *> &a, const std::unordered_set<Sy
 }
 
 bool analyzeInBB(BasicBlock *BB, FunctionLivenessResult &functionResult, bool visited) {
-  std::unordered_set<Symbol *> buffer;
+  std::unordered_set<const Symbol *> buffer;
   auto &result = functionResult.result;
   for (auto succ : BB->getSuccessors()) {
     auto &succIN = result[succ->getFirstInstruction()].IN;
