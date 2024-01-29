@@ -35,7 +35,7 @@ public:
   std::string toStr() override;
   void accept(Visitor &visitor) override;
   std::string getName8Bit();
-  static const std::unordered_set<Register *> &getAllRegisters();
+  static const std::unordered_set<Register *> &getAllGPRegisters();
   static const std::unordered_set<Register *> &getCallerSavedRegisters();
   static const std::unordered_set<Register *> &getCalleeSavedRegisters();
   static const std::vector<Register *> &getArgRegisters();
@@ -45,7 +45,7 @@ private:
   static const std::unordered_map<ID, Register *> enumMap;
 
   std::string name8Bit;
-  static const std::unordered_set<Register *> allRegisters;
+  static const std::unordered_set<Register *> allGPRegisters;
   static const std::unordered_set<Register *> callerSavedRegisters;
   static const std::unordered_set<Register *> calleeSavedRegisters;
   static const std::vector<Register *> argRegisters;

@@ -1,4 +1,3 @@
-#include "liveness_analyzer.h"
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
@@ -7,6 +6,8 @@
 
 #include <L2.h>
 #include <code_generator.h>
+#include <interference_analyzer.h>
+#include <liveness_analyzer.h>
 #include <parser.h>
 
 void printHelp(char *progName) {
@@ -107,6 +108,7 @@ int main(int argc, char **argv) {
    * BACKEND STARTS HERE
    */
   auto &livenessResult = L2::analyzeLiveness(P);
+  auto &interferenceResult = L2::analyzeInterference(P, livenessResult);
 
   /*
    * END OF BACKEND
@@ -156,7 +158,7 @@ int main(int argc, char **argv) {
    * Interference graph test.
    */
   if (interferenceOnly) {
-    // TODO
+    interferenceResult.getFunctionGraph(P.getCurrFunction()).dump();
     return 0;
   }
 

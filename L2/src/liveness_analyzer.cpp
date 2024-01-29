@@ -167,11 +167,10 @@ void FunctionLivenessResult::dump() const {
   for (auto I : instBuffer) {
     auto &IN = result.at(I).getIN();
     std::cout << "(";
-    for (auto pV = IN.begin(); pV != IN.end();) {
-      std::cout << (*pV)->toStr();
-      if (++pV != IN.end())
-        std::cout << " ";
-    }
+
+    for (auto symbol : IN)
+      std::cout << symbol->toStr() << " ";
+
     std::cout << ")" << std::endl;
   }
 
@@ -180,15 +179,18 @@ void FunctionLivenessResult::dump() const {
   for (auto I : instBuffer) {
     auto &OUT = result.at(I).getOUT();
     std::cout << "(";
-    for (auto pV = OUT.begin(); pV != OUT.end();) {
-      std::cout << (*pV)->toStr();
-      if (++pV != OUT.end())
-        std::cout << " ";
-    }
+
+    for (auto symbol : OUT)
+      std::cout << symbol->toStr() << " ";
+
     std::cout << ")" << std::endl;
   }
 
   std::cout << ")" << std::endl << std::endl << ")" << std::endl;
+}
+
+const LivenessSets &FunctionLivenessResult::getLivenessSets(Instruction *I) const {
+  return result.at(I);
 }
 
 bool setEqual(const std::unordered_set<Symbol *> &a, const std::unordered_set<Symbol *> &b) {

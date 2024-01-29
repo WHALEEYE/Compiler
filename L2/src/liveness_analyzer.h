@@ -30,6 +30,7 @@ class FunctionLivenessResult {
 public:
   FunctionLivenessResult() = default;
   void dump() const;
+  const LivenessSets &getLivenessSets(Instruction *I) const;
 
 private:
   std::map<Instruction *, LivenessSets> result;
