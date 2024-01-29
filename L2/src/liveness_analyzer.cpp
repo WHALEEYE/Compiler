@@ -10,42 +10,42 @@ namespace L2 {
 
 class GenKillCalculator : public Visitor {
 public:
-  void visit(Register *reg) {
+  void visit(const Register *reg) override {
     debug("visiting register " + reg->toStr());
     if (reg == Register::getRegister(Register::ID::RSP))
       return;
     now->insert(reg);
   }
 
-  void visit(Variable *var) {
+  void visit(const Variable *var) override {
     debug("visiting variable " + var->toStr());
     now->insert(var);
   }
 
-  void visit(Number *num) {}
-  void visit(CompareOp *op) {}
-  void visit(ShiftOp *op) {}
-  void visit(ArithOp *op) {}
-  void visit(SelfModOp *op) {}
+  void visit(const Number *num) override {}
+  void visit(const CompareOp *op) override {}
+  void visit(const ShiftOp *op) override {}
+  void visit(const ArithOp *op) override {}
+  void visit(const SelfModOp *op) override {}
 
-  void visit(MemoryLocation *mem) {
+  void visit(const MemoryLocation *mem) override {
     // no matter how mem loc is accessed, the base register is always brought alive
     auto original = now;
     now = &GEN;
     mem->getBase()->accept(*this);
     now = original;
   }
-  void visit(StackLocation *stack) {}
-  void visit(FunctionName *name) {}
-  void visit(Label *label) {}
+  void visit(const StackLocation *stack) override {}
+  void visit(const FunctionName *name) override {}
+  void visit(const Label *label) override {}
 
-  void visit(RetInst *inst) {
+  void visit(const RetInst *inst) override {
     GEN.insert(Register::getRegister(Register::ID::RAX));
     auto &calleeSaved = Register::getCalleeSavedRegisters();
     GEN.insert(calleeSaved.begin(), calleeSaved.end());
   }
 
-  void visit(ShiftInst *inst) {
+  void visit(const ShiftInst *inst) override {
     now = &KILL;
     inst->getLval()->accept(*this);
     now = &GEN;
@@ -53,7 +53,7 @@ public:
     inst->getRval()->accept(*this);
   }
 
-  void visit(ArithInst *inst) {
+  void visit(const ArithInst *inst) override {
     now = &KILL;
     inst->getLval()->accept(*this);
     now = &GEN;
@@ -61,21 +61,21 @@ public:
     inst->getRval()->accept(*this);
   }
 
-  void visit(SelfModInst *inst) {
+  void visit(const SelfModInst *inst) override {
     now = &KILL;
     inst->getLval()->accept(*this);
     now = &GEN;
     inst->getLval()->accept(*this);
   }
 
-  void visit(AssignInst *inst) {
+  void visit(const AssignInst *inst) override {
     now = &KILL;
     inst->getLval()->accept(*this);
     now = &GEN;
     inst->getRval()->accept(*this);
   }
 
-  void visit(CompareAssignInst *inst) {
+  void visit(const CompareAssignInst *inst) override {
     now = &KILL;
     inst->getLval()->accept(*this);
     now = &GEN;
@@ -83,34 +83,34 @@ public:
     inst->getCmpRval()->accept(*this);
   }
 
-  void visit(CallInst *inst) {
+  void visit(const CallInst *inst) override {
     handleCall(inst->getArgNum()->getVal());
     now = &GEN;
     inst->getCallee()->accept(*this);
   }
 
-  void visit(PrintInst *inst) { handleCall(1); }
+  void visit(const PrintInst *inst) override { handleCall(1); }
 
-  void visit(InputInst *inst) { handleCall(0); }
+  void visit(const InputInst *inst) override { handleCall(0); }
 
-  void visit(AllocateInst *inst) { handleCall(2); }
+  void visit(const AllocateInst *inst) override { handleCall(2); }
 
-  void visit(TupleErrorInst *inst) { handleCall(3); }
+  void visit(const TupleErrorInst *inst) override { handleCall(3); }
 
-  void visit(TensorErrorInst *inst) { handleCall(inst->getArgNum()->getVal()); }
+  void visit(const TensorErrorInst *inst) override { handleCall(inst->getArgNum()->getVal()); }
 
-  void visit(SetInst *inst) {
+  void visit(const SetInst *inst) override {
     now = &KILL;
     inst->getLval()->accept(*this);
     now = &GEN;
     inst->getBase()->accept(*this);
     inst->getOffset()->accept(*this);
   }
-  void visit(LabelInst *inst) {}
+  void visit(const LabelInst *inst) override {}
 
-  void visit(GotoInst *inst) {}
+  void visit(const GotoInst *inst) override {}
 
-  void visit(CondJumpInst *inst) {
+  void visit(const CondJumpInst *inst) override {
     now = &GEN;
     inst->getLval()->accept(*this);
     inst->getRval()->accept(*this);
@@ -122,7 +122,7 @@ public:
     return instance;
   }
 
-  void doVisit(Instruction *I) {
+  void doVisit(const Instruction *I) {
     GEN.clear();
     KILL.clear();
     I->accept(*this);
@@ -138,9 +138,9 @@ private:
   static GenKillCalculator *instance;
 
   // used as a readonly buffer
-  const std::unordered_set<Register *> &callerSaved = Register::getCallerSavedRegisters(),
-                                       &calleeSaved = Register::getCalleeSavedRegisters();
-  const std::vector<Register *> &args = Register::getArgRegisters();
+  const std::unordered_set<const Register *> &callerSaved = Register::getCallerSavedRegisters(),
+                                             &calleeSaved = Register::getCalleeSavedRegisters();
+  const std::vector<const Register *> &args = Register::getArgRegisters();
 
   void handleCall(int64_t argNum) {
     KILL.insert(callerSaved.begin(), callerSaved.end());
@@ -193,11 +193,12 @@ void FunctionLivenessResult::dump() const {
   std::cout << ")" << std::endl << std::endl << ")" << std::endl;
 }
 
-const LivenessSets &FunctionLivenessResult::getLivenessSets(Instruction *I) const {
+const LivenessSets &FunctionLivenessResult::getLivenessSets(const Instruction *I) const {
   return result.at(I);
 }
 
-bool setEqual(const std::unordered_set<const Symbol *> &a, const std::unordered_set<const Symbol *> &b) {
+bool setEqual(const std::unordered_set<const Symbol *> &a,
+              const std::unordered_set<const Symbol *> &b) {
   if (a.size() != b.size())
     return false;
 

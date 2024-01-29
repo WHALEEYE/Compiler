@@ -16,14 +16,14 @@ void InterferenceGraph::dump() const {
   }
 }
 
-bool InterferenceGraph::hasEdge(Symbol *s1, Symbol *s2) {
+bool InterferenceGraph::hasEdge(const Symbol *s1, const Symbol *s2) {
   if (graph.find(s1) == graph.end())
     return false;
 
   return graph.at(s1).find(s2) != graph.at(s1).end();
 }
 
-void InterferenceGraph::addEdge(Symbol *s1, Symbol *s2) {
+void InterferenceGraph::addEdge(const Symbol *s1, const Symbol *s2) {
   if (s1 == s2)
     return;
 
@@ -70,8 +70,8 @@ const InterferenceResult &analyzeInterference(const Program *P, const LivenessRe
             functionGraph.addEdge(killSym, outSym);
 
         // add instruction specific edges
-        if (auto shiftInst = dynamic_cast<ShiftInst *>(I))
-          if (auto rVal = dynamic_cast<Symbol *>(shiftInst->getRval()))
+        if (auto shiftInst = dynamic_cast<const ShiftInst *>(I))
+          if (auto rVal = dynamic_cast<const Symbol *>(shiftInst->getRval()))
             for (auto reg : allGPRegisters)
               if (reg != Register::getRegister(Register::ID::RCX))
                 functionGraph.addEdge(rVal, reg);

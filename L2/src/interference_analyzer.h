@@ -12,12 +12,12 @@ class InterferenceGraph {
 public:
   InterferenceGraph() = default;
   void dump() const;
-  bool hasEdge(Symbol *s1, Symbol *s2);
+  bool hasEdge(const Symbol *s1, const Symbol *s2);
 
 private:
-  void addEdge(Symbol *s1, Symbol *s2);
-  void removeEdge(Symbol *s1, Symbol *s2);
-  std::map<Symbol *, std::unordered_set<Symbol *>> graph;
+  void addEdge(const Symbol *s1, const Symbol *s2);
+  void removeEdge(const Symbol *s1, const Symbol *s2);
+  std::map<const Symbol *, std::unordered_set<const Symbol *>> graph;
 
   InterferenceGraph &operator=(const InterferenceGraph &) = delete;
   InterferenceGraph(const InterferenceGraph &) = delete;

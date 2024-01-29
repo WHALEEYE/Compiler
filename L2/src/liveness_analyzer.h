@@ -30,11 +30,11 @@ class FunctionLivenessResult {
 public:
   FunctionLivenessResult() = default;
   void dump() const;
-  const LivenessSets &getLivenessSets(Instruction *I) const;
+  const LivenessSets &getLivenessSets(const Instruction *I) const;
 
 private:
-  std::map<Instruction *, LivenessSets> result;
-  std::vector<Instruction *> instBuffer;
+  std::map<const Instruction *, LivenessSets> result;
+  std::vector<const Instruction *> instBuffer;
 
   FunctionLivenessResult &operator=(const FunctionLivenessResult &) = delete;
   FunctionLivenessResult(const FunctionLivenessResult &) = delete;

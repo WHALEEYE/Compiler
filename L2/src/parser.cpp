@@ -19,18 +19,18 @@ namespace L2 {
 
 class ItemStack {
 public:
-  ItemStack() : items{std::vector<Item *>()} { return; }
+  ItemStack() : items{std::vector<const Item *>()} { return; }
 
-  void push(Item *item) { items.push_back(item); }
+  void push(const Item *item) { items.push_back(item); }
 
-  Item *pop() {
+  const Item *pop() {
     auto item = items.back();
     items.pop_back();
     return item;
   }
 
 private:
-  std::vector<Item *> items;
+  std::vector<const Item *> items;
 };
 
 /*
@@ -715,17 +715,17 @@ void linkBasicBlocks(Function *F) {
   // find all basic blocks that starts with a label
   // these BBs may have predecessors that are not linked yet
   for (auto &BB : F->getBasicBlocks())
-    if (auto inst = dynamic_cast<LabelInst *>(BB->getFirstInstruction()))
+    if (auto inst = dynamic_cast<const LabelInst *>(BB->getFirstInstruction()))
       labelToBB[inst->getLabel()->getName()] = BB;
 
   // link all basic blocks
   for (auto &BB : F->getBasicBlocks()) {
-    if (auto inst = dynamic_cast<GotoInst *>(BB->getTerminator())) {
+    if (auto inst = dynamic_cast<const GotoInst *>(BB->getTerminator())) {
       auto label = inst->getLabel();
       auto targetBB = labelToBB[label->getName()];
       BB->addSuccessor(targetBB);
       targetBB->addPredecessor(BB);
-    } else if (auto inst = dynamic_cast<CondJumpInst *>(BB->getTerminator())) {
+    } else if (auto inst = dynamic_cast<const CondJumpInst *>(BB->getTerminator())) {
       auto label = inst->getLabel();
       auto targetBB = labelToBB[label->getName()];
       BB->addSuccessor(targetBB);

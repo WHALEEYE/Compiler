@@ -105,16 +105,6 @@ int main(int argc, char **argv) {
     P = L2::parseFile(argv[optind]);
   }
 
-  /*
-   * BACKEND STARTS HERE
-   */
-  auto &livenessResult = L2::analyzeLiveness(P);
-  auto &interferenceResult = L2::analyzeInterference(P, livenessResult);
-
-  /*
-   * END OF BACKEND
-   */
-
   if (verbose) {
     std::cout << "(" << P->getEntryPointLabel() << std::endl;
     for (auto F : P->getFunctions()) {
@@ -137,6 +127,7 @@ int main(int argc, char **argv) {
     /*
      * Spill.
      */
+    auto &livenessResult = L2::analyzeLiveness(P);
     L2::spillProgram(P, livenessResult);
 
     for (auto F : P->getFunctions()) {
@@ -158,6 +149,7 @@ int main(int argc, char **argv) {
    * Liveness test.
    */
   if (livenessOnly) {
+    auto &livenessResult = L2::analyzeLiveness(P);
     livenessResult.getFunctionResult(P->getCurrFunction()).dump();
     return 0;
   }
@@ -166,6 +158,8 @@ int main(int argc, char **argv) {
    * Interference graph test.
    */
   if (interferenceOnly) {
+    auto &livenessResult = L2::analyzeLiveness(P);
+    auto &interferenceResult = L2::analyzeInterference(P, livenessResult);
     interferenceResult.getFunctionGraph(P->getCurrFunction()).dump();
     return 0;
   }

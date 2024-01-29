@@ -13,7 +13,7 @@ class Visitor;
 class Item {
 public:
   virtual std::string toStr() const = 0;
-  virtual void accept(Visitor &visitor) = 0;
+  virtual void accept(Visitor &visitor) const = 0;
 };
 
 class Value : public Item {};
@@ -21,7 +21,7 @@ class Value : public Item {};
 class Symbol : public Value {
 public:
   Symbol(std::string name);
-  std::string getName();
+  const std::string getName() const;
 
 protected:
   std::string name;
@@ -30,40 +30,40 @@ protected:
 class Register : public Symbol {
 public:
   enum ID { R8, R9, R10, R11, R12, R13, R14, R15, RAX, RBX, RCX, RDX, RDI, RSI, RBP, RSP };
-  static Register *getRegister(ID id);
+  static const Register *getRegister(ID id);
 
   std::string toStr() const override;
-  void accept(Visitor &visitor) override;
-  std::string getName8Bit();
-  static const std::unordered_set<Register *> &getAllGPRegisters();
-  static const std::unordered_set<Register *> &getCallerSavedRegisters();
-  static const std::unordered_set<Register *> &getCalleeSavedRegisters();
-  static const std::vector<Register *> &getArgRegisters();
+  void accept(Visitor &visitor) const override;
+  const std::string getName8Bit() const;
+  static const std::unordered_set<const Register *> &getAllGPRegisters();
+  static const std::unordered_set<const Register *> &getCallerSavedRegisters();
+  static const std::unordered_set<const Register *> &getCalleeSavedRegisters();
+  static const std::vector<const Register *> &getArgRegisters();
 
 private:
   Register(std::string name, std::string name8Bit);
-  static const std::unordered_map<ID, Register *> enumMap;
+  static const std::unordered_map<ID, const Register *> enumMap;
 
   std::string name8Bit;
-  static const std::unordered_set<Register *> allGPRegisters;
-  static const std::unordered_set<Register *> callerSavedRegisters;
-  static const std::unordered_set<Register *> calleeSavedRegisters;
-  static const std::vector<Register *> argRegisters;
+  static const std::unordered_set<const Register *> allGPRegisters;
+  static const std::unordered_set<const Register *> callerSavedRegisters;
+  static const std::unordered_set<const Register *> calleeSavedRegisters;
+  static const std::vector<const Register *> argRegisters;
 };
 
 class Variable : public Symbol {
 public:
   Variable(std::string name);
   std::string toStr() const override;
-  void accept(Visitor &visitor) override;
+  void accept(Visitor &visitor) const override;
 };
 
 class Number : public Value {
 public:
   Number(int64_t val);
-  int64_t getVal();
+  int64_t getVal() const;
   std::string toStr() const override;
-  void accept(Visitor &visitor) override;
+  void accept(Visitor &visitor) const override;
 
 private:
   int64_t val;
@@ -74,9 +74,9 @@ public:
   enum ID { LESS_THAN, LESS_EQUAL, EQUAL };
   static CompareOp *getCompareOp(ID id);
 
-  std::string getName();
+  const std::string getName() const;
   std::string toStr() const override;
-  void accept(Visitor &visitor) override;
+  void accept(Visitor &visitor) const override;
 
 private:
   CompareOp(std::string name);
@@ -90,9 +90,9 @@ public:
   enum ID { LEFT, RIGHT };
   static ShiftOp *getShiftOp(ID id);
 
-  std::string getName();
+  const std::string getName() const;
   std::string toStr() const override;
-  void accept(Visitor &visitor) override;
+  void accept(Visitor &visitor) const override;
 
 private:
   ShiftOp(std::string name);
@@ -106,9 +106,9 @@ public:
   enum ID { ADD, SUB, MUL, AND };
   static ArithOp *getArithOp(ID id);
 
-  std::string getName();
+  const std::string getName() const;
   std::string toStr() const override;
-  void accept(Visitor &visitor) override;
+  void accept(Visitor &visitor) const override;
 
 private:
   ArithOp(std::string name);
@@ -122,9 +122,9 @@ public:
   enum ID { INC, DEC };
   static SelfModOp *getSelfModOp(ID id);
 
-  std::string getName();
+  const std::string getName() const;
   std::string toStr() const override;
-  void accept(Visitor &visitor) override;
+  void accept(Visitor &visitor) const override;
 
 private:
   SelfModOp(std::string name);
@@ -135,34 +135,34 @@ private:
 
 class MemoryLocation : public Item {
 public:
-  MemoryLocation(Symbol *base, Number *offset);
-  Symbol *getBase();
-  Number *getOffset();
+  MemoryLocation(const Symbol *base, const Number *offset);
+  const Symbol *getBase() const;
+  const Number *getOffset() const;
   std::string toStr() const override;
-  void accept(Visitor &visitor) override;
+  void accept(Visitor &visitor) const override;
 
 private:
-  Symbol *base;
-  Number *offset;
+  const Symbol *base;
+  const Number *offset;
 };
 
 class StackLocation : public Item {
 public:
-  StackLocation(Number *offset);
-  Number *getOffset();
+  StackLocation(const Number *offset);
+  const Number *getOffset() const;
   std::string toStr() const override;
-  void accept(Visitor &visitor) override;
+  void accept(Visitor &visitor) const override;
 
 private:
-  Number *offset;
+  const Number *offset;
 };
 
 class FunctionName : public Item {
 public:
   FunctionName(std::string name);
-  std::string getName();
+  std::string getName() const;
   std::string toStr() const override;
-  void accept(Visitor &visitor) override;
+  void accept(Visitor &visitor) const override;
 
 private:
   std::string name;
@@ -171,9 +171,9 @@ private:
 class Label : public Item {
 public:
   Label(std::string name);
-  std::string getName();
+  std::string getName() const;
   std::string toStr() const override;
-  void accept(Visitor &visitor) override;
+  void accept(Visitor &visitor) const override;
 
 private:
   std::string name;
@@ -185,7 +185,7 @@ private:
 class Instruction {
 public:
   virtual std::string toStr() const = 0;
-  virtual void accept(Visitor &visitor) = 0;
+  virtual void accept(Visitor &visitor) const = 0;
 };
 
 /*
@@ -194,215 +194,205 @@ public:
 class RetInst : public Instruction {
 public:
   std::string toStr() const override;
-  void accept(Visitor &visitor) override;
+  void accept(Visitor &visitor) const override;
 };
 
 class ShiftInst : public Instruction {
 public:
-  ShiftInst(ShiftOp *op, Symbol *lval, Value *rval);
-  ShiftOp *getOp();
-  Symbol *getLval();
-  Value *getRval();
+  ShiftInst(const ShiftOp *op, const Symbol *lval, const Value *rval);
+  const ShiftOp *getOp() const;
+  const Symbol *getLval() const;
+  const Value *getRval() const;
   std::string toStr() const override;
-  void accept(Visitor &visitor) override;
+  void accept(Visitor &visitor) const override;
 
 private:
-  ShiftOp *op;
-  Symbol *lval;
-  Value *rval;
+  const ShiftOp *op;
+  const Symbol *lval;
+  const Value *rval;
 };
 
 class ArithInst : public Instruction {
 public:
-  ArithInst(ArithOp *op, Item *lval, Item *rval);
-  ArithOp *getOp();
-  Item *getLval();
-  Item *getRval();
+  ArithInst(const ArithOp *op, const Item *lval, const Item *rval);
+  const ArithOp *getOp() const;
+  const Item *getLval() const;
+  const Item *getRval() const;
   std::string toStr() const override;
-  void accept(Visitor &visitor) override;
+  void accept(Visitor &visitor) const override;
 
 private:
-  ArithOp *op;
-  Item *lval;
-  Item *rval;
+  const ArithOp *op;
+  const Item *lval;
+  const Item *rval;
 };
 
 class SelfModInst : public Instruction {
 public:
-  SelfModInst(SelfModOp *op, Symbol *lval);
-  SelfModOp *getOp();
-  Symbol *getLval();
+  SelfModInst(const SelfModOp *op, const Symbol *lval);
+  const SelfModOp *getOp() const;
+  const Symbol *getLval() const;
   std::string toStr() const override;
-  void accept(Visitor &visitor) override;
+  void accept(Visitor &visitor) const override;
 
 private:
-  SelfModOp *op;
-  Symbol *lval;
+  const SelfModOp *op;
+  const Symbol *lval;
 };
 
 class AssignInst : public Instruction {
 public:
-  AssignInst(Item *lval, Item *rval);
-  Item *getLval();
-  Item *getRval();
+  AssignInst(const Item *lval, const Item *rval);
+  const Item *getLval() const;
+  const Item *getRval() const;
   std::string toStr() const override;
-  void accept(Visitor &visitor) override;
+  void accept(Visitor &visitor) const override;
 
 private:
-  Item *lval;
-  Item *rval;
+  const Item *lval;
+  const Item *rval;
 };
 
 class CompareAssignInst : public Instruction {
 public:
-  CompareAssignInst(Symbol *lval, CompareOp *op, Value *cmpLval, Value *cmpRval);
-  Symbol *getLval();
-  CompareOp *getOp();
-  Value *getCmpLval();
-  Value *getCmpRval();
+  CompareAssignInst(const Symbol *lval, const CompareOp *op, const Value *cmpLval,
+                    const Value *cmpRval);
+  const Symbol *getLval() const;
+  const CompareOp *getOp() const;
+  const Value *getCmpLval() const;
+  const Value *getCmpRval() const;
   std::string toStr() const override;
-  void accept(Visitor &visitor) override;
+  void accept(Visitor &visitor) const override;
 
 private:
-  Symbol *lval;
-  CompareOp *op;
-  Value *cmpLval;
-  Value *cmpRval;
+  const Symbol *lval;
+  const CompareOp *op;
+  const Value *cmpLval;
+  const Value *cmpRval;
 };
 
 class CallInst : public Instruction {
 public:
-  CallInst(Item *callee, Number *argNum);
-  Item *getCallee();
-  Number *getArgNum();
+  CallInst(const Item *callee, const Number *argNum);
+  const Item *getCallee() const;
+  const Number *getArgNum() const;
   std::string toStr() const override;
-  void accept(Visitor &visitor) override;
+  void accept(Visitor &visitor) const override;
 
 private:
-  Item *callee;
-  Number *argNum;
+  const Item *callee;
+  const Number *argNum;
 };
 
 class PrintInst : public Instruction {
 public:
   std::string toStr() const override;
-  void accept(Visitor &visitor) override;
+  void accept(Visitor &visitor) const override;
 };
 
 class InputInst : public Instruction {
 public:
   std::string toStr() const override;
-  void accept(Visitor &visitor) override;
+  void accept(Visitor &visitor) const override;
 };
 
 class AllocateInst : public Instruction {
 public:
   std::string toStr() const override;
-  void accept(Visitor &visitor) override;
+  void accept(Visitor &visitor) const override;
 };
 
 class TupleErrorInst : public Instruction {
 public:
   std::string toStr() const override;
-  void accept(Visitor &visitor) override;
+  void accept(Visitor &visitor) const override;
 };
 
 class TensorErrorInst : public Instruction {
 public:
-  TensorErrorInst(Number *number);
-  Number *getArgNum();
+  TensorErrorInst(const Number *number);
+  const Number *getArgNum() const;
   std::string toStr() const override;
-  void accept(Visitor &visitor) override;
+  void accept(Visitor &visitor) const override;
 
 private:
-  Number *argNum;
+  const Number *argNum;
 };
 
 class SetInst : public Instruction {
 public:
-  SetInst(Symbol *lval, Symbol *base, Symbol *offset, Number *scalar);
-  Symbol *getLval();
-  Symbol *getBase();
-  Symbol *getOffset();
-  Number *getScalar();
+  SetInst(const Symbol *lval, const Symbol *base, const Symbol *offset, const Number *scalar);
+  const Symbol *getLval() const;
+  const Symbol *getBase() const;
+  const Symbol *getOffset() const;
+  const Number *getScalar() const;
   std::string toStr() const override;
-  void accept(Visitor &visitor) override;
+  void accept(Visitor &visitor) const override;
 
 private:
-  Symbol *lval;
-  Symbol *base;
-  Symbol *offset;
-  Number *scalar;
+  const Symbol *lval;
+  const Symbol *base;
+  const Symbol *offset;
+  const Number *scalar;
 };
 
 class LabelInst : public Instruction {
 public:
-  LabelInst(Label *label);
-  Label *getLabel();
+  LabelInst(const Label *label);
+  const Label *getLabel() const;
   std::string toStr() const override;
-  void accept(Visitor &visitor) override;
+  void accept(Visitor &visitor) const override;
 
 private:
-  Label *label;
+  const Label *label;
 };
 
 class GotoInst : public Instruction {
 public:
-  GotoInst(Label *label);
-  Label *getLabel();
+  GotoInst(const Label *label);
+  const Label *getLabel() const;
   std::string toStr() const override;
-  void accept(Visitor &visitor) override;
+  void accept(Visitor &visitor) const override;
 
 private:
-  Label *label;
+  const Label *label;
 };
 
 class CondJumpInst : public Instruction {
 public:
-  CondJumpInst(CompareOp *op, Value *lval, Value *rval, Label *label);
-  CompareOp *getOp();
-  Value *getLval();
-  Value *getRval();
-  Label *getLabel();
+  CondJumpInst(const CompareOp *op, const Value *lval, const Value *rval, const Label *label);
+  const CompareOp *getOp() const;
+  const Value *getLval() const;
+  const Value *getRval() const;
+  const Label *getLabel() const;
   std::string toStr() const override;
-  void accept(Visitor &visitor) override;
+  void accept(Visitor &visitor) const override;
 
 private:
-  CompareOp *op;
-  Value *lval;
-  Value *rval;
-  Label *label;
+  const CompareOp *op;
+  const Value *lval;
+  const Value *rval;
+  const Label *label;
 };
 
 /*
  * Structres.
  */
-
-class SymbolTable {
-public:
-  void addSymbol(std::string name, Item *item);
-  Item *getSymbol(std::string name);
-
-private:
-  std::unordered_map<std::string, Item *> table;
-  SymbolTable *parent;
-};
-
 class BasicBlock {
 public:
-  const std::vector<Instruction *> &getInstructions();
-  void addInstruction(Instruction *inst);
-  const std::unordered_set<BasicBlock *> &getPredecessors();
+  const std::vector<const Instruction *> &getInstructions() const;
+  void addInstruction(const Instruction *inst);
+  const std::unordered_set<BasicBlock *> &getPredecessors() const;
   void addPredecessor(BasicBlock *BB);
   void removePredecessor(BasicBlock *BB);
-  const std::unordered_set<BasicBlock *> &getSuccessors();
+  const std::unordered_set<BasicBlock *> &getSuccessors() const;
   void addSuccessor(BasicBlock *BB);
   void removeSuccessor(BasicBlock *BB);
-  Instruction *getFirstInstruction();
-  Instruction *getTerminator();
+  const Instruction *getFirstInstruction() const;
+  const Instruction *getTerminator() const;
 
 private:
-  std::vector<Instruction *> instructions;
+  std::vector<const Instruction *> instructions;
   std::unordered_set<BasicBlock *> predecessors;
   std::unordered_set<BasicBlock *> successors;
 
@@ -415,12 +405,12 @@ public:
   std::string getName();
   int64_t getParamNum();
   void setParameters(int64_t parameters);
-  const std::vector<BasicBlock *> &getBasicBlocks();
+  const std::vector<BasicBlock *> &getBasicBlocks() const;
   void addBasicBlock(BasicBlock *BB);
-  BasicBlock *getCurrBasicBlock();
+  BasicBlock *getCurrBasicBlock() const;
   void popCurrBasicBlock();
-  Variable *getVariable(std::string name);
-  bool hasVariable(std::string name);
+  const Variable *getVariable(std::string name);
+  bool hasVariable(std::string name) const;
 
 private:
   std::string name;
@@ -449,33 +439,33 @@ private:
 
 class Visitor {
 public:
-  virtual void visit(Register *reg) = 0;
-  virtual void visit(Variable *var) = 0;
-  virtual void visit(Number *num) = 0;
-  virtual void visit(CompareOp *op) = 0;
-  virtual void visit(ShiftOp *op) = 0;
-  virtual void visit(ArithOp *op) = 0;
-  virtual void visit(SelfModOp *op) = 0;
-  virtual void visit(MemoryLocation *mem) = 0;
-  virtual void visit(StackLocation *stack) = 0;
-  virtual void visit(FunctionName *name) = 0;
-  virtual void visit(Label *label) = 0;
-  virtual void visit(RetInst *inst) = 0;
-  virtual void visit(ShiftInst *inst) = 0;
-  virtual void visit(ArithInst *inst) = 0;
-  virtual void visit(SelfModInst *inst) = 0;
-  virtual void visit(AssignInst *inst) = 0;
-  virtual void visit(CompareAssignInst *inst) = 0;
-  virtual void visit(CallInst *inst) = 0;
-  virtual void visit(PrintInst *inst) = 0;
-  virtual void visit(InputInst *inst) = 0;
-  virtual void visit(AllocateInst *inst) = 0;
-  virtual void visit(TupleErrorInst *inst) = 0;
-  virtual void visit(TensorErrorInst *inst) = 0;
-  virtual void visit(SetInst *inst) = 0;
-  virtual void visit(LabelInst *inst) = 0;
-  virtual void visit(GotoInst *inst) = 0;
-  virtual void visit(CondJumpInst *inst) = 0;
+  virtual void visit(const Register *reg) = 0;
+  virtual void visit(const Variable *var) = 0;
+  virtual void visit(const Number *num) = 0;
+  virtual void visit(const CompareOp *op) = 0;
+  virtual void visit(const ShiftOp *op) = 0;
+  virtual void visit(const ArithOp *op) = 0;
+  virtual void visit(const SelfModOp *op) = 0;
+  virtual void visit(const MemoryLocation *mem) = 0;
+  virtual void visit(const StackLocation *stack) = 0;
+  virtual void visit(const FunctionName *name) = 0;
+  virtual void visit(const Label *label) = 0;
+  virtual void visit(const RetInst *inst) = 0;
+  virtual void visit(const ShiftInst *inst) = 0;
+  virtual void visit(const ArithInst *inst) = 0;
+  virtual void visit(const SelfModInst *inst) = 0;
+  virtual void visit(const AssignInst *inst) = 0;
+  virtual void visit(const CompareAssignInst *inst) = 0;
+  virtual void visit(const CallInst *inst) = 0;
+  virtual void visit(const PrintInst *inst) = 0;
+  virtual void visit(const InputInst *inst) = 0;
+  virtual void visit(const AllocateInst *inst) = 0;
+  virtual void visit(const TupleErrorInst *inst) = 0;
+  virtual void visit(const TensorErrorInst *inst) = 0;
+  virtual void visit(const SetInst *inst) = 0;
+  virtual void visit(const LabelInst *inst) = 0;
+  virtual void visit(const GotoInst *inst) = 0;
+  virtual void visit(const CondJumpInst *inst) = 0;
 };
 
 } // namespace L2
