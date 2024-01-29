@@ -21,7 +21,7 @@ public:
 private:
   std::unordered_set<Symbol *> GEN, KILL, IN, OUT;
 
-  friend const LivenessResult &analyzeLiveness(Program &P);
+  friend const LivenessResult &analyzeLiveness(const Program *P);
   friend bool analyzeInBB(BasicBlock *BB, FunctionLivenessResult &result, bool visited);
   friend void calculateGenKill(Function *F, FunctionLivenessResult &result);
 };
@@ -39,7 +39,7 @@ private:
   FunctionLivenessResult &operator=(const FunctionLivenessResult &) = delete;
   FunctionLivenessResult(const FunctionLivenessResult &) = delete;
 
-  friend const LivenessResult &analyzeLiveness(Program &P);
+  friend const LivenessResult &analyzeLiveness(const Program *P);
   friend bool analyzeInBB(BasicBlock *BB, FunctionLivenessResult &functionResult, bool visited);
   friend void calculateGenKill(Function *F, FunctionLivenessResult &result);
 };
@@ -47,19 +47,19 @@ private:
 class LivenessResult {
 public:
   LivenessResult() = default;
-  const FunctionLivenessResult &getFunctionResult(Function *F) const;
+  const FunctionLivenessResult &getFunctionResult(const Function *F) const;
 
 private:
-  std::map<Function *, FunctionLivenessResult> functionResults;
+  std::map<const Function *, FunctionLivenessResult> functionResults;
 
   LivenessResult &operator=(const LivenessResult &) = delete;
   LivenessResult(const LivenessResult &) = delete;
 
-  friend const LivenessResult &analyzeLiveness(Program &P);
+  friend const LivenessResult &analyzeLiveness(const Program *P);
   friend bool analyzeInBB(BasicBlock *BB, FunctionLivenessResult &functionResult, bool visited);
   friend void calculateGenKill(Function *F, FunctionLivenessResult &result);
 };
 
-const LivenessResult &analyzeLiveness(Program &P);
+const LivenessResult &analyzeLiveness(const Program *P);
 
 } // namespace L2

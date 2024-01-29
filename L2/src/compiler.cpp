@@ -1,3 +1,4 @@
+#include "spiller.h"
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
@@ -73,7 +74,7 @@ int main(int argc, char **argv) {
   /*
    * Parse the input file.
    */
-  L2::Program P;
+  L2::Program *P;
 
   if (spillOnly) {
 
@@ -115,8 +116,8 @@ int main(int argc, char **argv) {
    */
 
   if (verbose) {
-    std::cout << "(" << P.getEntryPointLabel() << std::endl;
-    for (auto F : P.getFunctions()) {
+    std::cout << "(" << P->getEntryPointLabel() << std::endl;
+    for (auto F : P->getFunctions()) {
       std::cout << "  (" << F->getName() << "\n    " << F->getParamNum() << "\n";
 
       for (auto BB : F->getBasicBlocks())
@@ -136,12 +137,19 @@ int main(int argc, char **argv) {
     /*
      * Spill.
      */
-    // TODO
+    auto prog = (L2::ProgramToSpill *)P;
+    L2::SpillProgram(prog);
 
-    /*
-     * Dump the L2 code.
-     */
-    // TODO
+    for (auto F : P->getFunctions()) {
+      std::cout << "(" << F->getName() << "\n\t" << F->getParamNum() << " "
+                << (prog->isSpilled() ? 1 : 0) << "\n";
+
+      for (auto BB : F->getBasicBlocks())
+        for (auto I : BB->getInstructions())
+          std::cout << "\t" << I->toStr() << std::endl;
+
+      std::cout << ")" << std::endl;
+    }
 
     return 0;
   }
@@ -150,7 +158,7 @@ int main(int argc, char **argv) {
    * Liveness test.
    */
   if (livenessOnly) {
-    livenessResult.getFunctionResult(P.getCurrFunction()).dump();
+    livenessResult.getFunctionResult(P->getCurrFunction()).dump();
     return 0;
   }
 
@@ -158,7 +166,7 @@ int main(int argc, char **argv) {
    * Interference graph test.
    */
   if (interferenceOnly) {
-    interferenceResult.getFunctionGraph(P.getCurrFunction()).dump();
+    interferenceResult.getFunctionGraph(P->getCurrFunction()).dump();
     return 0;
   }
 

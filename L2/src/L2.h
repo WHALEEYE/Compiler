@@ -9,6 +9,7 @@
 namespace L2 {
 
 class Visitor;
+class ProgramToSpill;
 
 class Item {
 public:
@@ -135,14 +136,14 @@ private:
 
 class MemoryLocation : public Item {
 public:
-  MemoryLocation(Item *base, Number *offset);
-  Item *getBase();
+  MemoryLocation(Symbol *base, Number *offset);
+  Symbol *getBase();
   Number *getOffset();
   std::string toStr() override;
   void accept(Visitor &visitor) override;
 
 private:
-  Item *base;
+  Symbol *base;
   Number *offset;
 };
 
@@ -405,6 +406,8 @@ private:
   std::vector<Instruction *> instructions;
   std::unordered_set<BasicBlock *> predecessors;
   std::unordered_set<BasicBlock *> successors;
+
+friend void SpillProgram(ProgramToSpill *P);
 };
 
 class Function {
@@ -428,14 +431,19 @@ private:
 
 class Program {
 public:
-  std::string getEntryPointLabel();
+  Program() = default;
+  std::string getEntryPointLabel() const;
   void setEntryPointLabel(std::string label);
-  const std::vector<Function *> &getFunctions();
+  const std::vector<Function *> &getFunctions() const;
   void addFunction(Function *F);
-  Function *getCurrFunction();
+  Function *getCurrFunction() const;
+
+protected:
+  std::string entryPointLabel;
 
 private:
-  std::string entryPointLabel;
+  Program(const Program &) = delete;
+  Program &operator=(const Program &) = delete;
   std::vector<Function *> functions;
 };
 

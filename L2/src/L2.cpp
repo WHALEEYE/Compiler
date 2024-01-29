@@ -93,8 +93,8 @@ void SelfModOp::accept(Visitor &visitor) { visitor.visit(this); }
 const std::unordered_map<SelfModOp::ID, SelfModOp *> SelfModOp::enumMap = {
     {ID::INC, new SelfModOp("++")}, {ID::DEC, new SelfModOp("--")}};
 
-MemoryLocation::MemoryLocation(Item *base, Number *offset) : base{base}, offset{offset} {}
-Item *MemoryLocation::getBase() { return base; }
+MemoryLocation::MemoryLocation(Symbol *base, Number *offset) : base{base}, offset{offset} {}
+Symbol *MemoryLocation::getBase() { return base; }
 Number *MemoryLocation::getOffset() { return offset; }
 std::string MemoryLocation::toStr() { return "mem " + base->toStr() + " " + offset->toStr(); }
 void MemoryLocation::accept(Visitor &visitor) { visitor.visit(this); }
@@ -137,7 +137,7 @@ void ArithInst::accept(Visitor &visitor) { visitor.visit(this); }
 SelfModInst::SelfModInst(SelfModOp *op, Symbol *lval) : op{op}, lval{lval} {}
 SelfModOp *SelfModInst::getOp() { return op; }
 Symbol *SelfModInst::getLval() { return lval; }
-std::string SelfModInst::toStr() { return lval->toStr() + " " + op->toStr(); }
+std::string SelfModInst::toStr() { return lval->toStr() + op->toStr(); }
 void SelfModInst::accept(Visitor &visitor) { visitor.visit(this); }
 
 AssignInst::AssignInst(Item *lval, Item *rval) : lval{lval}, rval{rval} {}
@@ -240,10 +240,10 @@ Variable *Function::getVariable(std::string name) {
   return variables[name];
 }
 
-std::string Program::getEntryPointLabel() { return entryPointLabel; }
+std::string Program::getEntryPointLabel() const { return entryPointLabel; }
 void Program::setEntryPointLabel(std::string label) { entryPointLabel = label; }
-const std::vector<Function *> &Program::getFunctions() { return functions; }
+const std::vector<Function *> &Program::getFunctions() const { return functions; }
 void Program::addFunction(Function *F) { functions.push_back(F); }
-Function *Program::getCurrFunction() { return functions.back(); }
+Function *Program::getCurrFunction() const { return functions.back(); }
 
 } // namespace L2

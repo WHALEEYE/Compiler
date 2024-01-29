@@ -22,25 +22,26 @@ private:
   InterferenceGraph &operator=(const InterferenceGraph &) = delete;
   InterferenceGraph(const InterferenceGraph &) = delete;
 
-  friend const InterferenceResult &analyzeInterference(Program &P,
+  friend const InterferenceResult &analyzeInterference(const Program *P,
                                                        const LivenessResult &livenessResult);
 };
 
 class InterferenceResult {
 public:
   InterferenceResult() = default;
-  const InterferenceGraph &getFunctionGraph(Function *F) const;
+  const InterferenceGraph &getFunctionGraph(const Function *F) const;
 
 private:
-  std::map<Function *, InterferenceGraph> functionGraphs;
+  std::map<const Function *, InterferenceGraph> functionGraphs;
 
   InterferenceResult &operator=(const InterferenceResult &) = delete;
   InterferenceResult(const InterferenceResult &) = delete;
 
-  friend const InterferenceResult &analyzeInterference(Program &P,
+  friend const InterferenceResult &analyzeInterference(const Program *P,
                                                        const LivenessResult &livenessResult);
 };
 
-const InterferenceResult &analyzeInterference(Program &P, const LivenessResult &livenessResult);
+const InterferenceResult &analyzeInterference(const Program *P,
+                                              const LivenessResult &livenessResult);
 
 } // namespace L2

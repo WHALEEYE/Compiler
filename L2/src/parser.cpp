@@ -1,3 +1,4 @@
+#include "spiller.h"
 #include <iostream>
 #include <vector>
 
@@ -11,6 +12,7 @@
 #include <L2.h>
 #include <helper.h>
 #include <parser.h>
+#include <spiller.h>
 
 using namespace TAO_PEGTL_NAMESPACE;
 
@@ -118,6 +120,9 @@ struct I : seq<one<'@'>, name> {};
 // var ::= %name
 struct var : seq<one<'%'>, name> {};
 
+struct spilled_var : var {};
+struct spill_prefix : var {};
+
 // sx ::= rcx | var
 struct sx : sor<var, rcx> {};
 
@@ -217,11 +222,20 @@ struct function : seq<seq<spaces, one<'('>>, seps_with_comments, seq<spaces, I>,
 
 struct functions : plus<seps_with_comments, function, seps_with_comments> {};
 
+struct func_only : seq<seps_with_comments, function, seps_with_comments> {};
+
+struct spill_func : seq<seps_with_comments, function, seps_with_comments, spilled_var,
+                        seps_with_comments, spill_prefix, seps_with_comments> {};
+
 struct entry_point
     : seq<seps_with_comments, seq<spaces, one<'('>>, seps_with_comments, I, seps_with_comments,
           functions, seps_with_comments, seq<spaces, one<')'>>, seps> {};
 
 struct grammar : must<entry_point> {};
+
+struct func_grammar : must<func_only> {};
+
+struct spill_grammar : must<spill_func> {};
 
 /*
  * Actions attached to grammar rules.
@@ -252,6 +266,20 @@ template <> struct action<var> {
     auto F = P.getCurrFunction();
     auto var = F->getVariable(in.string());
     itemStack.push(var);
+  }
+};
+
+template <> struct action<spilled_var> {
+  template <typename Input> static void apply(const Input &in, Program &P) {
+    auto &prog = *((ProgramToSpill *)(&P));
+    prog.setSpilledVar(in.string());
+  }
+};
+
+template <> struct action<spill_prefix> {
+  template <typename Input> static void apply(const Input &in, Program &P) {
+    auto &prog = *((ProgramToSpill *)(&P));
+    prog.setSpillPrefix(in.string());
   }
 };
 
@@ -450,7 +478,7 @@ template <> struct action<self_dec> {
 template <> struct action<mem_loc> {
   template <typename Input> static void apply(const Input &in, Program &P) {
     auto offset = (Number *)itemStack.pop();
-    auto base = itemStack.pop();
+    auto base = (Symbol *)itemStack.pop();
     auto m = new MemoryLocation(base, offset);
     itemStack.push(m);
   }
@@ -690,7 +718,7 @@ void linkBasicBlocks(Function *F) {
   }
 }
 
-Program parseFile(char *fileName) {
+Program *parseFile(char *fileName) {
 
   /*
    * Check the grammar for some possible issues.
@@ -704,22 +732,30 @@ Program parseFile(char *fileName) {
    * Parse.
    */
   file_input<> fileInput(fileName);
-  Program P;
-  parse<grammar, action>(fileInput, P);
-  for (auto F : P.getFunctions())
+  auto P = new Program();
+  parse<grammar, action>(fileInput, *P);
+  for (auto F : P->getFunctions())
     linkBasicBlocks(F);
   return P;
 }
 
-Program parseSpillFile(char *fileName) {
-  throw std::runtime_error("parse_spill_file() not implemented yet.");
+ProgramToSpill *parseSpillFile(char *fileName) {
+  if (analyze<spill_grammar>() != 0) {
+    std::cerr << "There are problems with the grammar" << std::endl;
+    exit(1);
+  }
+
+  file_input<> fileInput(fileName);
+  auto P = new ProgramToSpill();
+  parse<spill_grammar, action>(fileInput, *P);
+  return P;
 }
 
-Program parseFunctionFile(char *fileName) {
+Program *parseFunctionFile(char *fileName) {
   /*
    * Check the grammar for some possible issues.
    */
-  if (analyze<function>() != 0) {
+  if (analyze<func_grammar>() != 0) {
     std::cerr << "There are problems with the grammar" << std::endl;
     exit(1);
   }
@@ -728,10 +764,10 @@ Program parseFunctionFile(char *fileName) {
    * Parse.
    */
   file_input<> fileInput(fileName);
-  Program P;
-  P.setEntryPointLabel("@<PHONY>");
-  parse<function, action>(fileInput, P);
-  for (auto F : P.getFunctions())
+  auto P = new Program();
+  P->setEntryPointLabel("@<Phony>");
+  parse<func_grammar, action>(fileInput, *P);
+  for (auto F : P->getFunctions())
     linkBasicBlocks(F);
   return P;
 }

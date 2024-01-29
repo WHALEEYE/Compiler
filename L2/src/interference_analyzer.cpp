@@ -31,14 +31,14 @@ void InterferenceGraph::addEdge(Symbol *s1, Symbol *s2) {
   graph[s2].insert(s1);
 }
 
-const InterferenceGraph &InterferenceResult::getFunctionGraph(Function *F) const {
+const InterferenceGraph &InterferenceResult::getFunctionGraph(const Function *F) const {
   return functionGraphs.at(F);
 }
 
-const InterferenceResult &analyzeInterference(Program &P, const LivenessResult &livenessResult) {
+const InterferenceResult &analyzeInterference(const Program *P, const LivenessResult &livenessResult) {
   auto *interferenceResult = new InterferenceResult();
   auto &allGPRegisters = Register::getAllGPRegisters();
-  for (auto F : P.getFunctions()) {
+  for (auto F : P->getFunctions()) {
     auto &functionGraph = interferenceResult->functionGraphs[F];
     auto &graph = functionGraph.graph;
     auto &functionLivenessResult = livenessResult.getFunctionResult(F);

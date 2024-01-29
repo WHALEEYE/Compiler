@@ -227,13 +227,13 @@ bool analyzeInBB(BasicBlock *BB, FunctionLivenessResult &functionResult, bool vi
   return true;
 }
 
-const FunctionLivenessResult &LivenessResult::getFunctionResult(Function *F) const {
+const FunctionLivenessResult &LivenessResult::getFunctionResult(const Function *F) const {
   return functionResults.at(F);
 }
 
-const LivenessResult &analyzeLiveness(Program &P) {
+const LivenessResult &analyzeLiveness(const Program *P) {
   auto livenessResult = new LivenessResult();
-  for (auto F : P.getFunctions()) {
+  for (auto F : P->getFunctions()) {
     auto &functionResult = livenessResult->functionResults[F];
 
     // first, initialize the instBuffer
