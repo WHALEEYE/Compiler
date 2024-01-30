@@ -12,7 +12,7 @@ class GenKillCalculator : public Visitor {
 public:
   void visit(const Register *reg) override {
     debug("visiting register " + reg->toStr());
-    if (reg == Register::getRegister(Register::ID::RSP))
+    if (reg->getID() == Register::ID::RSP)
       return;
     now->insert(reg);
   }
@@ -149,7 +149,7 @@ private:
   }
 };
 
-void calculateGenKill(Function *F, FunctionLivenessResult &functionResult) {
+void calculateGenKill(const Function *F, LivenessResult &functionResult) {
   auto &result = functionResult.result;
   auto calculator = GenKillCalculator::getInstance();
   for (auto I : functionResult.instBuffer) {
@@ -166,7 +166,7 @@ const std::unordered_set<const Symbol *> &LivenessSets::getKILL() const { return
 const std::unordered_set<const Symbol *> &LivenessSets::getIN() const { return IN; }
 const std::unordered_set<const Symbol *> &LivenessSets::getOUT() const { return OUT; }
 
-void FunctionLivenessResult::dump() const {
+void LivenessResult::dump() const {
   std::cout << "(" << std::endl << "(in" << std::endl;
   for (auto I : instBuffer) {
     auto &IN = result.at(I).getIN();
@@ -193,7 +193,7 @@ void FunctionLivenessResult::dump() const {
   std::cout << ")" << std::endl << std::endl << ")" << std::endl;
 }
 
-const LivenessSets &FunctionLivenessResult::getLivenessSets(const Instruction *I) const {
+const LivenessSets &LivenessResult::getLivenessSets(const Instruction *I) const {
   return result.at(I);
 }
 
@@ -209,7 +209,7 @@ bool setEqual(const std::unordered_set<const Symbol *> &a,
   return true;
 }
 
-bool analyzeInBB(BasicBlock *BB, FunctionLivenessResult &functionResult, bool visited) {
+bool analyzeInBB(const BasicBlock *BB, LivenessResult &functionResult, bool visited) {
   std::unordered_set<const Symbol *> buffer;
   auto &result = functionResult.result;
   for (auto succ : BB->getSuccessors()) {
@@ -232,37 +232,30 @@ bool analyzeInBB(BasicBlock *BB, FunctionLivenessResult &functionResult, bool vi
   return true;
 }
 
-const FunctionLivenessResult &LivenessResult::getFunctionResult(const Function *F) const {
-  return functionResults.at(F);
-}
-
-const LivenessResult &analyzeLiveness(const Program *P) {
+const LivenessResult &analyzeLiveness(const Function *F) {
   auto livenessResult = new LivenessResult();
-  for (auto F : P->getFunctions()) {
-    auto &functionResult = livenessResult->functionResults[F];
 
-    // first, initialize the instBuffer
-    for (auto BB : F->getBasicBlocks())
-      for (auto I : BB->getInstructions())
-        functionResult.instBuffer.push_back(I);
+  // first, initialize the instBuffer
+  for (auto BB : F->getBasicBlocks())
+    for (auto I : BB->getInstructions())
+      livenessResult->instBuffer.push_back(I);
 
-    calculateGenKill(F, functionResult);
+  calculateGenKill(F, *livenessResult);
 
-    std::queue<BasicBlock *> workq;
-    std::map<BasicBlock *, bool> visited;
-    for (auto pB = F->getBasicBlocks().rbegin(); pB != F->getBasicBlocks().rend(); pB++)
-      workq.push(*pB);
+  std::queue<BasicBlock *> workq;
+  std::map<BasicBlock *, bool> visited;
+  for (auto pB = F->getBasicBlocks().rbegin(); pB != F->getBasicBlocks().rend(); pB++)
+    workq.push(*pB);
 
-    while (!workq.empty()) {
-      auto BB = workq.front();
-      workq.pop();
+  while (!workq.empty()) {
+    auto BB = workq.front();
+    workq.pop();
 
-      if (analyzeInBB(BB, functionResult, visited[BB]))
-        for (auto pred : BB->getPredecessors())
-          workq.push(pred);
+    if (analyzeInBB(BB, *livenessResult, visited[BB]))
+      for (auto pred : BB->getPredecessors())
+        workq.push(pred);
 
-      visited[BB] = true;
-    }
+    visited[BB] = true;
   }
 
   return *livenessResult;

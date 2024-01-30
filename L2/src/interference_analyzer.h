@@ -3,16 +3,20 @@
 
 #include <L2.h>
 #include <liveness_analyzer.h>
+#include <spiller.h>
+#include <unordered_set>
 
 namespace L2 {
 
-class InterferenceResult;
+typedef struct ColorResult ColorResult;
+enum class ColorResultType;
 
 class InterferenceGraph {
 public:
   InterferenceGraph() = default;
   void dump() const;
   bool hasEdge(const Symbol *s1, const Symbol *s2);
+  const std::unordered_set<const Symbol *> &getNeighbors(const Symbol *s) const;
 
 private:
   void addEdge(const Symbol *s1, const Symbol *s2);
@@ -22,26 +26,13 @@ private:
   InterferenceGraph &operator=(const InterferenceGraph &) = delete;
   InterferenceGraph(const InterferenceGraph &) = delete;
 
-  friend const InterferenceResult &analyzeInterference(const Program *P,
-                                                       const LivenessResult &livenessResult);
+  friend InterferenceGraph &analyzeInterference(const Function *F,
+                                                const LivenessResult &livenessResult);
+  friend const ColorResult &colorGraph(Function *F);
+  friend ColorResultType tryColor(Function *F, InterferenceGraph &interferenceGraph,
+                         const LivenessResult &livenessResult, ColorResult &result);
 };
 
-class InterferenceResult {
-public:
-  InterferenceResult() = default;
-  const InterferenceGraph &getFunctionGraph(const Function *F) const;
-
-private:
-  std::map<const Function *, InterferenceGraph> functionGraphs;
-
-  InterferenceResult &operator=(const InterferenceResult &) = delete;
-  InterferenceResult(const InterferenceResult &) = delete;
-
-  friend const InterferenceResult &analyzeInterference(const Program *P,
-                                                       const LivenessResult &livenessResult);
-};
-
-const InterferenceResult &analyzeInterference(const Program *P,
-                                              const LivenessResult &livenessResult);
+InterferenceGraph &analyzeInterference(const Function *F, const LivenessResult &livenessResult);
 
 } // namespace L2

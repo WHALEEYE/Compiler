@@ -1,7 +1,9 @@
-#include "liveness_analyzer.h"
-#include <L2.h>
-#include <spiller.h>
+#include <iostream>
 #include <stdexcept>
+
+#include <L2.h>
+#include <liveness_analyzer.h>
+#include <spiller.h>
 
 namespace L2 {
 FunctionToSpill::FunctionToSpill(std::string name) : Function(name) { spilled = false; }
@@ -13,17 +15,28 @@ void FunctionToSpill::setSpilledVar(const Variable *spilledVar) { this->spilledV
 std::string FunctionToSpill::getSpillPrefix() const { return spillPrefix; }
 void FunctionToSpill::setSpillPrefix(std::string spillPrefix) { this->spillPrefix = spillPrefix; }
 
-bool FunctionSpillInfo::isSpilled(const Variable *var) const {
-  return varSpillInfos.find(var) != varSpillInfos.end();
+SpillInfo::SpillInfo(std::string spillPrefix)
+    : spillPrefix(spillPrefix), spillCount(0), nextPostfix(0) {}
+
+std::string SpillInfo::consumeName() { return spillPrefix + std::to_string(nextPostfix++); }
+
+bool SpillInfo::isSpilled(const Variable *var) const {
+  return !var->getName().compare(0, spillPrefix.size(), spillPrefix);
 }
 
-VarSpillInfo *FunctionSpillInfo::getVarSpillInfo(const Variable *var) {
-  if (!isSpilled(var)) {
+VarSpillInfo *SpillInfo::getVarSpillInfo(const Variable *var) {
+  if (varSpillInfos.find(var) == varSpillInfos.end()) {
     varSpillInfos[var].memLoc =
-        new MemoryLocation(Register::getRegister(Register::ID::RBP), new Number(8 * spillCount));
+        new MemoryLocation(Register::getRegister(Register::ID::RSP), new Number(8 * spillCount));
     spillCount++;
   }
   return &varSpillInfos[var];
+}
+
+void SpillInfo::dump() const {
+  std::cout << "spill info:" << std::endl;
+  for (auto &[var, spillInfo] : varSpillInfos)
+    std::cout << var->toStr() << " " << spillInfo.memLoc->toStr() << std::endl;
 }
 
 std::unordered_set<const Variable *> getIntersect(const std::unordered_set<const Variable *> &set1,
@@ -54,9 +67,10 @@ public:
       return;
     }
     auto varSpillInfo = spillInfo->getVarSpillInfo(var);
+
+    // remember to register the new variable to the function
     if (!varSpillInfo->newVar)
-      varSpillInfo->newVar =
-          new Variable(var->getName() + std::to_string(varSpillInfo->nextPostfix++));
+      varSpillInfo->newVar = F->getVariable(spillInfo->consumeName());
     spilledItem = varSpillInfo->newVar;
   }
 
@@ -203,18 +217,20 @@ public:
   }
 
   // setter that should be called for each function
-  void loadSpillInfo(FunctionSpillInfo *spillInfo, const FunctionLivenessResult *result,
-                     const std::unordered_set<const Variable *> &varsToBeSpilled) {
+  void loadSpillInfo(SpillInfo *spillInfo, const LivenessResult *result,
+                     const std::unordered_set<const Variable *> &varsToBeSpilled, Function *F) {
     this->result = result;
     this->spillInfo = spillInfo;
     this->varsToBeSpilled = varsToBeSpilled;
+    this->F = F;
   }
 
 private:
   // function wise info
-  const FunctionLivenessResult *result;
-  FunctionSpillInfo *spillInfo;
+  const LivenessResult *result;
+  SpillInfo *spillInfo;
   std::unordered_set<const Variable *> varsToBeSpilled;
+  Function *F;
 
   // BB wise info
   std::vector<const Instruction *> spilledInsts;
@@ -242,24 +258,23 @@ void spillInBB(BasicBlock *BB) {
   BB->instructions = spiller->spilledInsts;
 }
 
-void spillProgram(Program *P, const LivenessResult &result) {
+void spillProgram(Program *P, const LivenessResult &livenessResult) {
   for (auto F : P->getFunctions()) {
     auto spilledF = (FunctionToSpill *)F;
     if (!spilledF->getSpilledVar())
       continue;
-    auto functionSpillInfo = new FunctionSpillInfo();
+    auto functionSpillInfo = new SpillInfo(spilledF->getSpillPrefix());
     auto varsToBeSpilled = std::unordered_set<const Variable *>{spilledF->getSpilledVar()};
-    spiller->loadSpillInfo(functionSpillInfo, &result.getFunctionResult(F), varsToBeSpilled);
+    spiller->loadSpillInfo(functionSpillInfo, &livenessResult, varsToBeSpilled, F);
     for (auto BB : F->getBasicBlocks())
       spillInBB(BB);
     spilledF->setSpilled(true);
   }
 }
 
-void spillFunction(Function *F, const FunctionLivenessResult &livenessResult,
-                                 const std::unordered_set<const Variable *> &varsToBeSpilled,
-                                 std::string spillPrefix, FunctionSpillInfo &functionSpillInfo) {
-  spiller->loadSpillInfo(&functionSpillInfo, &livenessResult, varsToBeSpilled);
+void spillFunction(Function *F, SpillInfo &functionSpillInfo, const LivenessResult &livenessResult,
+                   const std::unordered_set<const Variable *> &varsToBeSpilled) {
+  spiller->loadSpillInfo(&functionSpillInfo, &livenessResult, varsToBeSpilled, F);
   for (auto BB : F->getBasicBlocks())
     spillInBB(BB);
 }

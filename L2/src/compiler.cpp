@@ -6,6 +6,7 @@
 
 #include <L2.h>
 #include <code_generator.h>
+#include <graph_colorer.h>
 #include <interference_analyzer.h>
 #include <liveness_analyzer.h>
 #include <parser.h>
@@ -15,6 +16,23 @@ void printHelp(char *progName) {
   std::cerr << "Usage: " << progName << " [-v] [-g 0|1] [-O 0|1|2] [-s] [-l] [-i] [-d] SOURCE"
             << std::endl;
   return;
+}
+
+void dumpFunction(const L2::Function *F) {
+  std::cout << "  (" << F->getName() << "\n    " << F->getParamNum() << "\n";
+
+  for (auto BB : F->getBasicBlocks())
+    for (auto I : BB->getInstructions())
+      std::cout << "    " << I->toStr() << std::endl;
+
+  std::cout << "  )" << std::endl;
+}
+
+void dumpProgram(const L2::Program *P) {
+  std::cout << "(" << P->getEntryPointLabel() << std::endl;
+  for (auto F : P->getFunctions())
+    dumpFunction(F);
+  std::cout << ")" << std::endl;
 }
 
 int main(int argc, char **argv) {
@@ -106,17 +124,7 @@ int main(int argc, char **argv) {
   }
 
   if (verbose) {
-    std::cout << "(" << P->getEntryPointLabel() << std::endl;
-    for (auto F : P->getFunctions()) {
-      std::cout << "  (" << F->getName() << "\n    " << F->getParamNum() << "\n";
-
-      for (auto BB : F->getBasicBlocks())
-        for (auto I : BB->getInstructions())
-          std::cout << "    " << I->toStr() << std::endl;
-
-      std::cout << "  )" << std::endl;
-    }
-    std::cout << ")" << std::endl;
+    dumpProgram(P);
   }
 
   /*
@@ -127,7 +135,7 @@ int main(int argc, char **argv) {
     /*
      * Spill.
      */
-    auto &livenessResult = L2::analyzeLiveness(P);
+    auto &livenessResult = L2::analyzeLiveness(P->getCurrFunction());
     L2::spillProgram(P, livenessResult);
 
     for (auto F : P->getFunctions()) {
@@ -149,8 +157,8 @@ int main(int argc, char **argv) {
    * Liveness test.
    */
   if (livenessOnly) {
-    auto &livenessResult = L2::analyzeLiveness(P);
-    livenessResult.getFunctionResult(P->getCurrFunction()).dump();
+    auto &livenessResult = L2::analyzeLiveness(P->getCurrFunction());
+    livenessResult.dump();
     return 0;
   }
 
@@ -158,9 +166,9 @@ int main(int argc, char **argv) {
    * Interference graph test.
    */
   if (interferenceOnly) {
-    auto &livenessResult = L2::analyzeLiveness(P);
-    auto &interferenceResult = L2::analyzeInterference(P, livenessResult);
-    interferenceResult.getFunctionGraph(P->getCurrFunction()).dump();
+    auto &livenessResult = L2::analyzeLiveness(P->getCurrFunction());
+    auto &interferenceResult = L2::analyzeInterference(P->getCurrFunction(), livenessResult);
+    interferenceResult.dump();
     return 0;
   }
 
@@ -168,7 +176,12 @@ int main(int argc, char **argv) {
    * Generate the target code.
    */
   if (enableCodeGenerator) {
-    // TODO
+    for (auto F : P->getFunctions()) {
+      auto &result = L2::colorGraph(F);
+      result.dump();
+
+      dumpFunction(F);
+    }
   }
 
   return 0;

@@ -6,5 +6,20 @@
 #include <spiller.h>
 
 namespace L2 {
-void colorGraph(const InterferenceResult &interferenceResult, const LivenessResult &livenessResult);
-}
+class ColorResult {
+public:
+  const std::unordered_map<const Symbol *, Register::ID> &getColorMap() const;
+  const SpillInfo &getSpillInfo() const;
+  void dump() const;
+
+private:
+  std::unordered_map<const Symbol *, Register::ID> colorMap;
+  SpillInfo *spillInfo;
+
+  friend const ColorResult &colorGraph(Function *F);
+  friend ColorResultType tryColor(Function *F, InterferenceGraph &interferenceGraph,
+                                  const LivenessResult &livenessResult, ColorResult &result);
+};
+
+const ColorResult &colorGraph(Function *F);
+} // namespace L2

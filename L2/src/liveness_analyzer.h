@@ -9,7 +9,6 @@
 namespace L2 {
 
 class LivenessResult;
-class FunctionLivenessResult;
 
 class LivenessSets {
 public:
@@ -21,14 +20,14 @@ public:
 private:
   std::unordered_set<const Symbol *> GEN, KILL, IN, OUT;
 
-  friend const LivenessResult &analyzeLiveness(const Program *P);
-  friend bool analyzeInBB(BasicBlock *BB, FunctionLivenessResult &result, bool visited);
-  friend void calculateGenKill(Function *F, FunctionLivenessResult &result);
+  friend const LivenessResult &analyzeLiveness(const Function *F);
+  friend bool analyzeInBB(const BasicBlock *BB, LivenessResult &functionResult, bool visited);
+  friend void calculateGenKill(const Function *F, LivenessResult &functionResult);
 };
 
-class FunctionLivenessResult {
+class LivenessResult {
 public:
-  FunctionLivenessResult() = default;
+  LivenessResult() = default;
   void dump() const;
   const LivenessSets &getLivenessSets(const Instruction *I) const;
 
@@ -36,30 +35,14 @@ private:
   std::map<const Instruction *, LivenessSets> result;
   std::vector<const Instruction *> instBuffer;
 
-  FunctionLivenessResult &operator=(const FunctionLivenessResult &) = delete;
-  FunctionLivenessResult(const FunctionLivenessResult &) = delete;
-
-  friend const LivenessResult &analyzeLiveness(const Program *P);
-  friend bool analyzeInBB(BasicBlock *BB, FunctionLivenessResult &functionResult, bool visited);
-  friend void calculateGenKill(Function *F, FunctionLivenessResult &result);
-};
-
-class LivenessResult {
-public:
-  LivenessResult() = default;
-  const FunctionLivenessResult &getFunctionResult(const Function *F) const;
-
-private:
-  std::map<const Function *, FunctionLivenessResult> functionResults;
-
   LivenessResult &operator=(const LivenessResult &) = delete;
   LivenessResult(const LivenessResult &) = delete;
 
-  friend const LivenessResult &analyzeLiveness(const Program *P);
-  friend bool analyzeInBB(BasicBlock *BB, FunctionLivenessResult &functionResult, bool visited);
-  friend void calculateGenKill(Function *F, FunctionLivenessResult &result);
+  friend const LivenessResult &analyzeLiveness(const Function *F);
+  friend bool analyzeInBB(const BasicBlock *BB, LivenessResult &functionResult, bool visited);
+  friend void calculateGenKill(const Function *F, LivenessResult &functionResult);
 };
 
-const LivenessResult &analyzeLiveness(const Program *P);
+const LivenessResult &analyzeLiveness(const Function *F);
 
 } // namespace L2

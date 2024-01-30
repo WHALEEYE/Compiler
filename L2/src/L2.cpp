@@ -9,10 +9,12 @@ namespace L2 {
 Symbol::Symbol(std::string name) : name{name} {}
 const std::string Symbol::getName() const { return name; }
 
-Register::Register(std::string name, std::string name8Bit) : Symbol(name), name8Bit{name8Bit} {}
+Register::Register(std::string name, std::string name8Bit, ID id)
+    : Symbol(name), name8Bit{name8Bit}, id{id} {}
 std::string Register::toStr() const { return name; }
 void Register::accept(Visitor &visitor) const { visitor.visit(this); }
 const std::string Register::getName8Bit() const { return name8Bit; }
+Register::ID Register::getID() const { return id; }
 const std::unordered_set<const Register *> &Register::getAllGPRegisters() { return allGPRegisters; }
 const std::unordered_set<const Register *> &Register::getCallerSavedRegisters() {
   return callerSavedRegisters;
@@ -23,15 +25,22 @@ const std::unordered_set<const Register *> &Register::getCalleeSavedRegisters() 
 const std::vector<const Register *> &Register::getArgRegisters() { return argRegisters; }
 const Register *Register::getRegister(ID id) { return enumMap.at(id); }
 const std::unordered_map<Register::ID, const Register *> Register::enumMap = {
-    {ID::R8, new Register("r8", "r8b")},    {ID::R9, new Register("r9", "r9b")},
-    {ID::R10, new Register("r10", "r10b")}, {ID::R11, new Register("r11", "r11b")},
-    {ID::R12, new Register("r12", "r12b")}, {ID::R13, new Register("r13", "r13b")},
-    {ID::R14, new Register("r14", "r14b")}, {ID::R15, new Register("r15", "r15b")},
-    {ID::RAX, new Register("rax", "al")},   {ID::RBX, new Register("rbx", "bl")},
-    {ID::RCX, new Register("rcx", "cl")},   {ID::RDX, new Register("rdx", "dl")},
-    {ID::RDI, new Register("rdi", "dil")},  {ID::RSI, new Register("rsi", "sil")},
-    {ID::RBP, new Register("rbp", "bpl")},  {ID::RSP, new Register("rsp", "<unknown-token>")},
-};
+    {ID::RAX, new Register("rax", "al", ID::RAX)},
+    {ID::RBX, new Register("rbx", "bl", ID::RBX)},
+    {ID::RCX, new Register("rcx", "cl", ID::RCX)},
+    {ID::RDX, new Register("rdx", "dl", ID::RDX)},
+    {ID::RDI, new Register("rdi", "dil", ID::RDI)},
+    {ID::RSI, new Register("rsi", "sil", ID::RSI)},
+    {ID::RBP, new Register("rbp", "bpl", ID::RBP)},
+    {ID::RSP, new Register("rsp", "<illegal>", ID::RSP)},
+    {ID::R8, new Register("r8", "r8b", ID::R8)},
+    {ID::R9, new Register("r9", "r9b", ID::R9)},
+    {ID::R10, new Register("r10", "r10b", ID::R10)},
+    {ID::R11, new Register("r11", "r11b", ID::R11)},
+    {ID::R12, new Register("r12", "r12b", ID::R12)},
+    {ID::R13, new Register("r13", "r13b", ID::R13)},
+    {ID::R14, new Register("r14", "r14b", ID::R14)},
+    {ID::R15, new Register("r15", "r15b", ID::R15)}};
 const std::unordered_set<const Register *> Register::allGPRegisters = {
     enumMap.at(ID::RAX), enumMap.at(ID::RBX), enumMap.at(ID::RCX), enumMap.at(ID::RDX),
     enumMap.at(ID::RDI), enumMap.at(ID::RSI), enumMap.at(ID::RBP), enumMap.at(ID::R8),
@@ -236,8 +245,8 @@ Function::Function(std::string name) : name{name} {
   // start with an empty basic block
   basicBlocks.push_back(new BasicBlock());
 }
-std::string Function::getName() { return name; }
-int64_t Function::getParamNum() { return paramNum; }
+std::string Function::getName() const { return name; }
+int64_t Function::getParamNum() const  { return paramNum; }
 void Function::setParameters(int64_t parameters) { this->paramNum = parameters; }
 const std::vector<BasicBlock *> &Function::getBasicBlocks() const { return basicBlocks; }
 void Function::addBasicBlock(BasicBlock *BB) { basicBlocks.push_back(BB); }
@@ -250,6 +259,9 @@ const Variable *Function::getVariable(std::string name) {
 }
 bool Function::hasVariable(std::string name) const {
   return variables.find(name) != variables.end();
+}
+const std::unordered_map<std::string, const Variable *> &Function::getVariables() const {
+  return variables;
 }
 
 std::string Program::getEntryPointLabel() const { return entryPointLabel; }

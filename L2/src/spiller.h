@@ -22,24 +22,26 @@ private:
 };
 
 struct VarSpillInfo {
-  int64_t nextPostfix = 0;
   const MemoryLocation *memLoc = nullptr;
   const Variable *newVar = nullptr;
 };
 
-class FunctionSpillInfo {
+class SpillInfo {
 public:
+  SpillInfo(std::string spillPrefix);
+  std::string consumeName();
   bool isSpilled(const Variable *var) const;
   VarSpillInfo *getVarSpillInfo(const Variable *var);
+  void dump() const;
 
 private:
   std::unordered_map<const Variable *, VarSpillInfo> varSpillInfos;
-  int64_t spillCount = 0;
+  int64_t spillCount, nextPostfix;
+  std::string spillPrefix;
 };
 
 void spillProgram(Program *P, const LivenessResult &livenessResult);
 
-void spillFunction(Function *F, const FunctionLivenessResult &livenessResult,
-                                 const std::unordered_set<const Variable *> &varsToBeSpilled,
-                                 std::string spillPrefix, FunctionSpillInfo &functionSpillInfo);
+void spillFunction(Function *F, SpillInfo &spillInfo, const LivenessResult &livenessResult,
+                   const std::unordered_set<const Variable *> &varsToBeSpilled);
 } // namespace L2

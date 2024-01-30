@@ -35,14 +35,16 @@ public:
   std::string toStr() const override;
   void accept(Visitor &visitor) const override;
   const std::string getName8Bit() const;
+  ID getID() const;
   static const std::unordered_set<const Register *> &getAllGPRegisters();
   static const std::unordered_set<const Register *> &getCallerSavedRegisters();
   static const std::unordered_set<const Register *> &getCalleeSavedRegisters();
   static const std::vector<const Register *> &getArgRegisters();
 
 private:
-  Register(std::string name, std::string name8Bit);
+  Register(std::string name, std::string name8Bit, ID id);
   static const std::unordered_map<ID, const Register *> enumMap;
+  const ID id;
 
   std::string name8Bit;
   static const std::unordered_set<const Register *> allGPRegisters;
@@ -402,8 +404,8 @@ private:
 class Function {
 public:
   Function(std::string name);
-  std::string getName();
-  int64_t getParamNum();
+  std::string getName() const;
+  int64_t getParamNum() const;
   void setParameters(int64_t parameters);
   const std::vector<BasicBlock *> &getBasicBlocks() const;
   void addBasicBlock(BasicBlock *BB);
@@ -411,12 +413,13 @@ public:
   void popCurrBasicBlock();
   const Variable *getVariable(std::string name);
   bool hasVariable(std::string name) const;
+  const std::unordered_map<std::string, const Variable *> &getVariables() const;
 
 private:
   std::string name;
   int64_t paramNum;
   std::vector<BasicBlock *> basicBlocks;
-  std::unordered_map<std::string, Variable *> variables;
+  std::unordered_map<std::string, const Variable *> variables;
 };
 
 class Program {
