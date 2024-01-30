@@ -90,8 +90,8 @@ ColorResultType tryColor(Function *F, InterferenceGraph &interferenceGraph,
                          const LivenessResult &livenessResult, ColorResult &result) {
   auto &graph = interferenceGraph.graph;
   auto &colorMap = result.colorMap;
-  colorMap.clear();
   auto &spillInfo = *result.spillInfo;
+  colorMap.clear();
   // stack
   std::vector<const Variable *> stack;
   std::unordered_set<const Variable *> removed;
@@ -130,12 +130,12 @@ ColorResultType tryColor(Function *F, InterferenceGraph &interferenceGraph,
   }
   std::sort(nodes.begin(), nodes.end(),
             [](const Node &a, const Node &b) { return a.degree > b.degree; });
-  for (auto node : nodes) {
+  for (auto &node : nodes) {
     stack.push_back(node.var);
     removed.insert(node.var);
   }
 
-  while (!removed.empty()) {
+  while (!stack.empty()) {
     // pop a node from the stack
     auto var = stack.back();
     stack.pop_back();

@@ -8,7 +8,7 @@
 
 namespace L2 {
 
-typedef struct ColorResult ColorResult;
+class ColorResult;
 enum class ColorResultType;
 
 class InterferenceGraph {

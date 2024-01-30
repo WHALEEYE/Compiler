@@ -1,102 +1,211 @@
+#include <fstream>
+#include <iostream>
+
 #include <L2.h>
 #include <code_generator.h>
-#include <fstream>
+#include <graph_colorer.h>
+#include <spiller.h>
+#include <string>
 
 using namespace std;
 
 namespace L2 {
 
-class CodeGenerator : public L2::Visitor {
-  void visit(Register *reg) override {
-    // TODO
+class L1CodeGenerator : Visitor {
+public:
+  void visit(const Register *reg) override {
+    buffer += reg->toStr();
+    buffer += " ";
   }
-  void visit(Variable *var) override {
-    // TODO
+
+  void visit(const Variable *var) override {
+    auto reg = colorMap.at(var);
+    buffer += Register::getRegister(reg)->toStr();
+    buffer += " ";
   }
-  void visit(Number *num) override {
-    // TODO
+
+  void visit(const Number *num) override {
+    buffer += num->toStr();
+    buffer += " ";
   }
-  void visit(CompareOp *op) override {
-    // TODO
+
+  void visit(const CompareOp *op) override {
+    buffer += op->toStr();
+    buffer += " ";
   }
-  void visit(ShiftOp *op) override {
-    // TODO
+
+  void visit(const ShiftOp *op) override {
+    buffer += op->toStr();
+    buffer += " ";
   }
-  void visit(ArithOp *op) override {
-    // TODO
+
+  void visit(const ArithOp *op) override {
+    buffer += op->toStr();
+    buffer += " ";
   }
-  void visit(SelfModOp *op) override {
-    // TODO
+
+  void visit(const SelfModOp *op) override {
+    buffer += op->toStr();
+    buffer += " ";
   }
-  void visit(MemoryLocation *mem) override {
-    // TODO
+
+  void visit(const MemoryLocation *mem) override {
+    buffer += "mem ";
+    mem->getBase()->accept(*this);
+    mem->getOffset()->accept(*this);
   }
-  void visit(StackLocation *stack) override {
-    // TODO
+
+  void visit(const StackLocation *stack) override {
+    buffer += "mem rsp ";
+    buffer += to_string(stack->getOffset()->getVal() + spillInfo->getSpillCount() * 8);
   }
-  void visit(FunctionName *name) override {
-    // TODO
+
+  void visit(const FunctionName *name) override {
+    buffer += name->toStr();
+    buffer += " ";
   }
-  void visit(Label *label) override {
-    // TODO
+
+  void visit(const Label *label) override {
+    buffer += label->toStr();
+    buffer += " ";
   }
-  void visit(RetInst *inst) override {
-    // TODO
+
+  void visit(const RetInst *I) override { buffer += "return"; }
+
+  void visit(const ShiftInst *I) override {
+    I->getLval()->accept(*this);
+    I->getOp()->accept(*this);
+    I->getRval()->accept(*this);
   }
-  void visit(ShiftInst *inst) override {
-    // TODO
+
+  void visit(const ArithInst *I) override {
+    I->getLval()->accept(*this);
+    I->getOp()->accept(*this);
+    I->getRval()->accept(*this);
   }
-  void visit(ArithInst *inst) override {
-    // TODO
+
+  void visit(const SelfModInst *I) override {
+    I->getLval()->accept(*this);
+    I->getOp()->accept(*this);
   }
-  void visit(SelfModInst *inst) override {
-    // TODO
+
+  void visit(const AssignInst *I) override {
+    I->getLval()->accept(*this);
+    buffer += "<- ";
+    I->getRval()->accept(*this);
   }
-  void visit(AssignInst *inst) override {
-    // TODO
+
+  void visit(const CompareAssignInst *I) override {
+    I->getLval()->accept(*this);
+    buffer += "<- ";
+    I->getCmpLval()->accept(*this);
+    I->getOp()->accept(*this);
+    I->getCmpRval()->accept(*this);
   }
-  void visit(CompareAssignInst *inst) override {
-    // TODO
+
+  void visit(const CallInst *I) override {
+    buffer += "call ";
+    I->getCallee()->accept(*this);
+    I->getArgNum()->accept(*this);
   }
-  void visit(CallInst *inst) override {
-    // TODO
+
+  void visit(const PrintInst *I) override { buffer += I->toStr(); }
+
+  void visit(const InputInst *I) override { buffer += I->toStr(); }
+
+  void visit(const AllocateInst *I) override { buffer += I->toStr(); }
+
+  void visit(const TupleErrorInst *I) override { buffer += I->toStr(); }
+
+  void visit(const TensorErrorInst *I) override { buffer += I->toStr(); }
+
+  void visit(const SetInst *I) override {
+    I->getLval()->accept(*this);
+    buffer += "@ ";
+    I->getBase()->accept(*this);
+    I->getOffset()->accept(*this);
+    I->getScalar()->accept(*this);
   }
-  void visit(PrintInst *inst) override {
-    // TODO
+
+  void visit(const LabelInst *I) override { buffer += I->toStr(); }
+
+  void visit(const GotoInst *I) override { buffer += I->toStr(); }
+
+  void visit(const CondJumpInst *I) override {
+    buffer += "cjump ";
+    I->getLval()->accept(*this);
+    I->getOp()->accept(*this);
+    I->getRval()->accept(*this);
+    I->getLabel()->accept(*this);
   }
-  void visit(InputInst *inst) override {
-    // TODO
+
+  void doVisit(const Instruction *I) {
+    buffer = "";
+    I->accept(*this);
+    instructions.push_back(buffer);
   }
-  void visit(AllocateInst *inst) override {
-    // TODO
+
+  static L1CodeGenerator &getInstance() {
+    if (instance == nullptr)
+      instance = new L1CodeGenerator();
+    return *instance;
   }
-  void visit(TupleErrorInst *inst) override {
-    // TODO
+
+  const vector<string> &getInstructions() const { return instructions; }
+
+  void loadFunctionInfo(const ColorResult &result) {
+    this->colorMap = result.getColorMap();
+    this->spillInfo = &result.getSpillInfo();
+    this->instructions.clear();
   }
-  void visit(TensorErrorInst *inst) override {
-    // TODO
-  }
-  void visit(SetInst *inst) override {
-    // TODO
-  }
-  void visit(LabelInst *inst) override {
-    // TODO
-  }
-  void visit(GotoInst *inst) override {
-    // TODO
-  }
-  void visit(CondJumpInst *inst) override {
-    // TODO
-  }
+
+private:
+  void printWithIndent(const string &str) { cout << indent << str << endl; }
+
+  string buffer;
+  vector<string> instructions;
+  const string indent = "    ";
+
+  // info used for generating code
+  unordered_map<const Symbol *, Register::ID> colorMap;
+  const SpillInfo *spillInfo;
+
+  // singleton
+  L1CodeGenerator() = default;
+  L1CodeGenerator(const L1CodeGenerator &) = delete;
+  L1CodeGenerator &operator=(const L1CodeGenerator &) = delete;
+  static L1CodeGenerator *instance;
 };
 
-void generate_code(Program P) {
+L1CodeGenerator *L1CodeGenerator::instance = nullptr;
+
+void generate_code(Program *P, unordered_map<const Function *, const ColorResult *> &results) {
 
   /*
    * Open the output file.
    */
-  std::ofstream outputFile;
-  outputFile.open("prog.S");
+  ofstream outputFile;
+  outputFile.open("prog.L1");
+
+  auto &generator = L1CodeGenerator::getInstance();
+
+  outputFile << "(" << P->getEntryPointLabel() << endl;
+  for (auto F : P->getFunctions()) {
+    auto colorResult = results.at(F);
+    generator.loadFunctionInfo(*colorResult);
+    outputFile << "  (" << F->getName() << "\n    " << F->getParamNum() << " "
+               << colorResult->getSpillInfo().getSpillCount() << "\n";
+
+    for (auto BB : F->getBasicBlocks())
+      for (auto I : BB->getInstructions())
+        generator.doVisit(I);
+
+    for (auto I : generator.getInstructions())
+      outputFile << "    " << I << endl;
+
+    outputFile << "  )" << std::endl;
+  }
+  outputFile << ")" << endl;
   return;
 }
 } // namespace L2

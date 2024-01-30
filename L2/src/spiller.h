@@ -32,10 +32,12 @@ public:
   std::string consumeName();
   bool isSpilled(const Variable *var) const;
   VarSpillInfo *getVarSpillInfo(const Variable *var);
+  int64_t getSpillCount() const;
   void dump() const;
 
 private:
   std::unordered_map<const Variable *, VarSpillInfo> varSpillInfos;
+  // spillCount means how many variables have been spilled
   int64_t spillCount, nextPostfix;
   std::string spillPrefix;
 };

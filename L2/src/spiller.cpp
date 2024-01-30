@@ -33,6 +33,8 @@ VarSpillInfo *SpillInfo::getVarSpillInfo(const Variable *var) {
   return &varSpillInfos[var];
 }
 
+int64_t SpillInfo::getSpillCount() const { return spillCount; }
+
 void SpillInfo::dump() const {
   std::cout << "spill info:" << std::endl;
   for (auto &[var, spillInfo] : varSpillInfos)

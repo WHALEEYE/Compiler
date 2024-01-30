@@ -3,6 +3,7 @@
 #include <iostream>
 #include <stdint.h>
 #include <unistd.h>
+#include <unordered_map>
 
 #include <L2.h>
 #include <code_generator.h>
@@ -176,12 +177,10 @@ int main(int argc, char **argv) {
    * Generate the target code.
    */
   if (enableCodeGenerator) {
-    for (auto F : P->getFunctions()) {
-      auto &result = L2::colorGraph(F);
-      result.dump();
-
-      dumpFunction(F);
-    }
+    std::unordered_map<const L2::Function *, const L2::ColorResult *> colorResults;
+    for (auto F : P->getFunctions())
+      colorResults[F] = &L2::colorGraph(F);
+    L2::generate_code(P, colorResults);
   }
 
   return 0;
