@@ -59,9 +59,7 @@ int getDegree(const std::unordered_set<const Variable *> &removed,
   return count;
 }
 
-const std::unordered_map<const Symbol *, Register::ID> &ColorResult::getColorMap() const {
-  return colorMap;
-}
+const ColorMap &ColorResult::getColorMap() const { return colorMap; }
 const SpillInfo &ColorResult::getSpillInfo() const { return *spillInfo; }
 void ColorResult::dump() const {
   std::cout << "color map:" << std::endl;
@@ -70,11 +68,6 @@ void ColorResult::dump() const {
   spillInfo->dump();
 }
 
-std::unordered_map<const Symbol *, Register::ID> colorMap;
-SpillInfo *spillInfo;
-
-enum class ColorResultType { SUCCESS, FAIL, CONTINUE };
-
 const static auto K = 15;
 const static auto colorPriority = {
     Register::ID::R10, Register::ID::R11, Register::ID::R8,  Register::ID::R9,  Register::ID::RAX,
@@ -82,15 +75,16 @@ const static auto colorPriority = {
     Register::ID::R13, Register::ID::R14, Register::ID::R15, Register::ID::RBP, Register::ID::RBX};
 
 /*
- * with interference graph, liveness result, Function pointer and spill info, try to color the graph
- * if succeeded, update the result
- * if spilled, update the result
+ * Try to color the graph.
+ * This function will update the result passed in.
  */
-ColorResultType tryColor(Function *F, InterferenceGraph &interferenceGraph,
-                         const LivenessResult &livenessResult, ColorResult &result) {
-  auto &graph = interferenceGraph.graph;
-  auto &colorMap = result.colorMap;
+bool tryColor(Function *F, ColorResult &result) {
+  auto &livenessResult = analyzeLiveness(F);
+  auto &interferenceResult = analyzeInterference(F, livenessResult);
+  auto &graph = interferenceResult.getGraph();
+
   auto &spillInfo = *result.spillInfo;
+  auto &colorMap = result.colorMap;
   colorMap.clear();
   // stack
   std::vector<const Variable *> stack;
@@ -144,7 +138,7 @@ ColorResultType tryColor(Function *F, InterferenceGraph &interferenceGraph,
     // assign a color for it if possible
     for (auto color : colorPriority) {
       bool legal = true;
-      for (auto nbr : graph[var]) {
+      for (auto nbr : interferenceResult.getNeighbors(var)) {
         if (colorMap.find(nbr) != colorMap.end() && colorMap.at(nbr) == color) {
           legal = false;
           break;
@@ -157,73 +151,45 @@ ColorResultType tryColor(Function *F, InterferenceGraph &interferenceGraph,
     }
   }
 
-  std::unordered_set<const Variable *> uncoloredVars;
-  std::unordered_set<const Variable *> varsToBeSpilled;
+  std::unordered_set<const Variable *> uncoloredVars, varsToBeSpilled, unspilledVars;
+  bool spilled, colored;
   // gather all the nodes that are not colored
   for (auto &[sym, _] : graph) {
-    if (colorMap.find(sym) == colorMap.end()) {
-      auto var = dynamic_cast<const Variable *>(sym);
-      uncoloredVars.insert(var);
-      if (spillInfo.isSpilled(var))
-        continue;
+    if (!dynamic_cast<const Variable *>(sym))
+      continue;
+    auto var = dynamic_cast<const Variable *>(sym);
+    spilled = spillInfo.isSpilled(var);
+    colored = colorMap.find(var) != colorMap.end();
+    if (!spilled && !colored)
       varsToBeSpilled.insert(var);
-    }
+    if (!colored)
+      uncoloredVars.insert(var);
+    if (!spilled)
+      unspilledVars.insert(var);
   }
 
-  if (uncoloredVars.empty()) {
-    return ColorResultType::SUCCESS;
-  } else if (varsToBeSpilled.empty()) {
-    return ColorResultType::FAIL;
-  }
-  // spill all the nodes that are not colored
+  if (uncoloredVars.empty()) // all the variables are colored
+    return true;
+  else if (unspilledVars.empty()) // uncolored vars remaining, but all the variables are spilled
+    throw std::runtime_error("failed to color the graph");
+  else if (varsToBeSpilled.empty()) // spill all the nodes that are not spilled
+    varsToBeSpilled = unspilledVars;
+
   spillFunction(F, *result.spillInfo, livenessResult, varsToBeSpilled);
-  return ColorResultType::CONTINUE;
+  return false;
 }
 
 const ColorResult &colorGraph(Function *F) {
   auto prefix = findSpillPrefix(F);
   auto spillInfo = new SpillInfo(prefix);
 
-  bool failed = false;
-  // a map recording the color (Register ID) of each node
-  auto result = new ColorResult();
-  result->spillInfo = spillInfo;
-  // liveness analysis and interference graph construction
-  const LivenessResult *livenessResult;
-  InterferenceGraph *interferenceGraph;
+  auto &result = *(new ColorResult());
+  result.spillInfo = spillInfo;
 
-  // BIG LOOP
-  while (true) {
-    livenessResult = &analyzeLiveness(F);
-    interferenceGraph = &analyzeInterference(F, *livenessResult);
-    auto colorResultType = tryColor(F, *interferenceGraph, *livenessResult, *result);
-    if (colorResultType == ColorResultType::SUCCESS)
-      break;
-    else if (colorResultType == ColorResultType::FAIL) {
-      failed = true;
-      break;
+  while (true)
+    if (tryColor(F, result)) {
+      return result;
     }
-  }
-
-  if (failed) {
-    // spill all remaining variables
-    // reuse the liveness result bcs it's not spilled since the last loop (failed bcs no variable
-    // found can be spilled)
-    std::unordered_set<const Variable *> varsToBeSpilled;
-    for (auto &[sym, _] : interferenceGraph->graph) {
-      if (auto var = dynamic_cast<const Variable *>(sym)) {
-        if (spillInfo->isSpilled(var))
-          continue;
-        varsToBeSpilled.insert(var);
-      }
-    }
-    spillFunction(F, *spillInfo, *livenessResult, varsToBeSpilled);
-
-    // now, try coloring for the last time
-    if (tryColor(F, *interferenceGraph, *livenessResult, *result) != ColorResultType::SUCCESS)
-      throw std::runtime_error("spill failed");
-  }
-
-  return *result;
 }
+
 } // namespace L2

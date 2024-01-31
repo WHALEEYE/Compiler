@@ -167,7 +167,7 @@ private:
   const string indent = "    ";
 
   // info used for generating code
-  unordered_map<const Symbol *, Register::ID> colorMap;
+  ColorMap colorMap;
   const SpillInfo *spillInfo;
 
   // singleton

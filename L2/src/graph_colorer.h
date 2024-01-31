@@ -6,19 +6,21 @@
 #include <spiller.h>
 
 namespace L2 {
+
+typedef std::unordered_map<const Symbol *, Register::ID> ColorMap;
+
 class ColorResult {
 public:
-  const std::unordered_map<const Symbol *, Register::ID> &getColorMap() const;
+  const ColorMap &getColorMap() const;
   const SpillInfo &getSpillInfo() const;
   void dump() const;
 
 private:
-  std::unordered_map<const Symbol *, Register::ID> colorMap;
+  ColorMap colorMap;
   SpillInfo *spillInfo;
 
   friend const ColorResult &colorGraph(Function *F);
-  friend ColorResultType tryColor(Function *F, InterferenceGraph &interferenceGraph,
-                                  const LivenessResult &livenessResult, ColorResult &result);
+  friend bool tryColor(Function *F, ColorResult &result);
 };
 
 const ColorResult &colorGraph(Function *F);
