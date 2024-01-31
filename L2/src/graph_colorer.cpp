@@ -187,9 +187,8 @@ const ColorResult &colorGraph(Function *F) {
   result.spillInfo = spillInfo;
 
   while (true)
-    if (tryColor(F, result)) {
+    if (tryColor(F, result))
       return result;
-    }
 }
 
 } // namespace L2
