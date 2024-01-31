@@ -189,7 +189,7 @@ void InputInst::accept(Visitor &visitor) const { visitor.visit(this); }
 std::string AllocateInst::toStr() const { return "call allocate 2"; }
 void AllocateInst::accept(Visitor &visitor) const { visitor.visit(this); }
 
-std::string TupleErrorInst::toStr() const { return "call tuple-error 0"; }
+std::string TupleErrorInst::toStr() const { return "call tuple-error 3"; }
 void TupleErrorInst::accept(Visitor &visitor) const { visitor.visit(this); }
 
 TensorErrorInst::TensorErrorInst(const Number *argNum) : argNum(argNum) {}

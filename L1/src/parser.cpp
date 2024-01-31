@@ -10,17 +10,18 @@
  *    if (shouldIPrint) std::cerr << "MY OUTPUT" << std::endl;
  * )
  */
-#include "tao/pegtl/ascii.hpp"
-#include "tao/pegtl/internal/pegtl_string.hpp"
-#include "tao/pegtl/rules.hpp"
 #include <iostream>
 #include <vector>
 
 #include <tao/pegtl.hpp>
+#include <tao/pegtl/ascii.hpp>
 #include <tao/pegtl/contrib/analyze.hpp>
 #include <tao/pegtl/contrib/raw_string.hpp>
+#include <tao/pegtl/internal/pegtl_string.hpp>
+#include <tao/pegtl/rules.hpp>
 
 #include <L1.h>
+#include <helper.h>
 #include <parser.h>
 
 using namespace TAO_PEGTL_NAMESPACE;
@@ -69,7 +70,7 @@ struct seps_with_comments : star<seq<spaces, sor<eol, comment>>> {};
 /*
  * Keywords.
  */
-struct ret : TAO_PEGTL_STRING("return") {};
+struct ret_inst : TAO_PEGTL_STRING("return") {};
 struct arrow : TAO_PEGTL_STRING("<-") {};
 // ") <- this is used to fix the colorization
 
@@ -196,12 +197,12 @@ struct cjump_inst
     : seq<cjump, spaces, arith_rval, spaces, cmp_op, spaces, arith_rval, spaces, label> {};
 
 struct instruction
-    : sor<seq<at<ret>, ret>, seq<at<assign_inst>, assign_inst>, seq<at<label_inst>, label_inst>,
-          seq<at<comment>, comment>, seq<at<shift_inst>, shift_inst>,
-          seq<at<arith_inst>, arith_inst>, seq<at<self_mod_inst>, self_mod_inst>,
-          seq<at<call_inst>, call_inst>, seq<at<print_inst>, print_inst>,
-          seq<at<input_inst>, input_inst>, seq<at<allocate_inst>, allocate_inst>,
-          seq<at<tuple_error_inst>, tuple_error_inst>,
+    : sor<seq<at<ret_inst>, ret_inst>, seq<at<assign_inst>, assign_inst>,
+          seq<at<label_inst>, label_inst>, seq<at<comment>, comment>,
+          seq<at<shift_inst>, shift_inst>, seq<at<arith_inst>, arith_inst>,
+          seq<at<self_mod_inst>, self_mod_inst>, seq<at<call_inst>, call_inst>,
+          seq<at<print_inst>, print_inst>, seq<at<input_inst>, input_inst>,
+          seq<at<allocate_inst>, allocate_inst>, seq<at<tuple_error_inst>, tuple_error_inst>,
           seq<at<tensor_error_inst>, tensor_error_inst>, seq<at<set_inst>, set_inst>,
           seq<at<goto_inst>, goto_inst>, seq<at<cjump_inst>, cjump_inst>> {};
 
@@ -295,14 +296,6 @@ template <> struct action<scalar_num> {
   template <typename Input> static void apply(const Input &in, Program &p) {
     auto n = new Number(std::stoll(in.string()));
     itemStack.push(n);
-  }
-};
-
-template <> struct action<ret> {
-  template <typename Input> static void apply(const Input &in, Program &p) {
-    auto currentF = p.functions.back();
-    auto i = new RetInst();
-    currentF->instructions.push_back(i);
   }
 };
 
@@ -511,8 +504,18 @@ template <> struct action<mem_loc> {
   }
 };
 
+template <> struct action<ret_inst> {
+  template <typename Input> static void apply(const Input &in, Program &p) {
+    debug("Ret Inst Reached");
+    auto currentF = p.functions.back();
+    auto i = new RetInst();
+    currentF->instructions.push_back(i);
+  }
+};
+
 template <> struct action<shift_inst> {
   template <typename Input> static void apply(const Input &in, Program &p) {
+    debug("Shift Inst Reached");
     auto rval = itemStack.pop();
     auto op = (ShiftOp *)itemStack.pop();
     auto lval = itemStack.pop();
@@ -524,6 +527,7 @@ template <> struct action<shift_inst> {
 
 template <> struct action<arith_inst> {
   template <typename Input> static void apply(const Input &in, Program &p) {
+    debug("Arith Inst Reached");
     auto rval = itemStack.pop();
     auto op = (ArithOp *)itemStack.pop();
     auto lval = itemStack.pop();
@@ -535,6 +539,7 @@ template <> struct action<arith_inst> {
 
 template <> struct action<self_mod_inst> {
   template <typename Input> static void apply(const Input &in, Program &p) {
+    debug("Self Mod Inst Reached");
     auto op = (SelfModOp *)itemStack.pop();
     auto lval = itemStack.pop();
     auto i = new SelfModInst(op, lval);
@@ -545,32 +550,18 @@ template <> struct action<self_mod_inst> {
 
 template <> struct action<norm_assign_inst> {
   template <typename Input> static void apply(const Input &in, Program &p) {
-
-    /*
-     * Fetch the current function.
-     */
+    debug("Norm Assign Inst Reached");
     auto currentF = p.functions.back();
-
-    /*
-     * Fetch the last two tokens parsed.
-     */
     auto rval = itemStack.pop();
     auto lval = itemStack.pop();
-
-    /*
-     * Create the instruction.
-     */
     auto i = new AssignInst(lval, rval);
-
-    /*
-     * Add the just-created instruction to the current function.
-     */
     currentF->instructions.push_back(i);
   }
 };
 
 template <> struct action<cmp_assign_inst> {
   template <typename Input> static void apply(const Input &in, Program &p) {
+    debug("Cmp Assign Inst Reached");
     auto cmpRval = itemStack.pop();
     auto op = (CompareOp *)itemStack.pop();
     auto cmpLval = itemStack.pop();
@@ -583,6 +574,7 @@ template <> struct action<cmp_assign_inst> {
 
 template <> struct action<call_inst> {
   template <typename Input> static void apply(const Input &in, Program &p) {
+    debug("Call Inst Reached");
     auto arg_num = (Number *)itemStack.pop();
     auto callee = itemStack.pop();
     auto i = new CallInst(callee, arg_num);
@@ -593,6 +585,7 @@ template <> struct action<call_inst> {
 
 template <> struct action<print_inst> {
   template <typename Input> static void apply(const Input &in, Program &p) {
+    debug("Print Inst Reached");
     auto i = new PrintInst();
     auto currentF = p.functions.back();
     currentF->instructions.push_back(i);
@@ -601,6 +594,7 @@ template <> struct action<print_inst> {
 
 template <> struct action<input_inst> {
   template <typename Input> static void apply(const Input &in, Program &p) {
+    debug("Input Inst Reached");
     auto i = new InputInst();
     auto currentF = p.functions.back();
     currentF->instructions.push_back(i);
@@ -609,6 +603,7 @@ template <> struct action<input_inst> {
 
 template <> struct action<allocate_inst> {
   template <typename Input> static void apply(const Input &in, Program &p) {
+    debug("Allocate Inst Reached");
     auto i = new AllocateInst();
     auto currentF = p.functions.back();
     currentF->instructions.push_back(i);
@@ -617,6 +612,7 @@ template <> struct action<allocate_inst> {
 
 template <> struct action<tuple_error_inst> {
   template <typename Input> static void apply(const Input &in, Program &p) {
+    debug("Tuple Error Inst Reached");
     auto i = new TupleErrorInst();
     auto currentF = p.functions.back();
     currentF->instructions.push_back(i);
@@ -625,6 +621,7 @@ template <> struct action<tuple_error_inst> {
 
 template <> struct action<tensor_error_inst> {
   template <typename Input> static void apply(const Input &in, Program &p) {
+    debug("Tensor Error Inst Reached");
     auto number = (Number *)itemStack.pop();
     auto i = new TensorErrorInst(number);
     auto currentF = p.functions.back();
@@ -634,6 +631,7 @@ template <> struct action<tensor_error_inst> {
 
 template <> struct action<set_inst> {
   template <typename Input> static void apply(const Input &in, Program &p) {
+    debug("Set Inst Reached");
     auto scalar = (Number *)itemStack.pop();
     auto offset = (Register *)itemStack.pop();
     auto base = (Register *)itemStack.pop();
@@ -646,6 +644,7 @@ template <> struct action<set_inst> {
 
 template <> struct action<label_inst> {
   template <typename Input> static void apply(const Input &in, Program &p) {
+    debug("Label Inst Reached");
     auto label = new Label(in.string());
     auto i = new LabelInst(label);
     auto currentF = p.functions.back();
@@ -655,6 +654,7 @@ template <> struct action<label_inst> {
 
 template <> struct action<goto_inst> {
   template <typename Input> static void apply(const Input &in, Program &p) {
+    debug("Goto Inst Reached");
     auto label = (Label *)itemStack.pop();
     auto i = new GotoInst(label);
     auto currentF = p.functions.back();
@@ -664,6 +664,7 @@ template <> struct action<goto_inst> {
 
 template <> struct action<cjump_inst> {
   template <typename Input> static void apply(const Input &in, Program &p) {
+    debug("Cjump Inst Reached");
     auto label = (Label *)itemStack.pop();
     auto rval = itemStack.pop();
     auto op = (CompareOp *)itemStack.pop();

@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
     return 1;
   }
   int32_t opt;
-  while ((opt = getopt(argc, argv, "vg:O:")) != -1) {
+  while ((opt = getopt(argc, argv, "vdg:O:")) != -1) {
     switch (opt) {
     case 'O':
       optLevel = strtoul(optarg, NULL, 0);
@@ -37,6 +37,10 @@ int main(int argc, char **argv) {
 
     case 'v':
       verbose = true;
+      break;
+
+    case 'd':
+      debugEnabled = true;
       break;
 
     default:

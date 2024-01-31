@@ -3,6 +3,8 @@
 #include <string>
 #include <vector>
 
+#include <helper.h>
+
 namespace L1 {
 
 enum RegisterID { R8, R9, R10, R11, R12, R13, R14, R15, RAX, RBX, RCX, RDX, RDI, RSI, RBP, RSP };

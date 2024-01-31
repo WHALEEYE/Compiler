@@ -92,9 +92,7 @@ public:
     spilledItem = new MemoryLocation(base, mem->getOffset());
   }
 
-  void visit(const StackLocation *stack) override {
-    throw std::runtime_error("unexpected branch reached");
-  }
+  void visit(const StackLocation *stack) override { spilledItem = stack; }
 
   void visit(const FunctionName *name) override { spilledItem = name; }
   void visit(const Label *label) override { spilledItem = label; }
