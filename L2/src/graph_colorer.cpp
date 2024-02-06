@@ -13,28 +13,15 @@
 namespace L2 {
 
 std::string findSpillPrefix(Function *F) {
-  std::string preFix = "%a";
-  auto alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  int ind = 1, cur = 0, max = 52;
-  auto &variables = F->getVariables();
-  bool hasPrefix;
-  do {
-    hasPrefix = false;
-    for (auto &[varName, _] : variables) {
-      if (varName.compare(0, preFix.size(), preFix) == 0) {
-        hasPrefix = true;
-        if (cur == max) {
-          ind++;
-          cur = 0;
-          preFix += alphabet[0];
-        } else {
-          preFix[ind] = alphabet[cur++];
-        }
-        break;
-      }
+  std::string longest = "";
+  int maxLen = 0;
+  for (auto &[varName, _] : F->getVariables())
+    if (varName.length() > maxLen) {
+      maxLen = varName.length();
+      longest = varName;
     }
-  } while (hasPrefix);
-  return preFix;
+
+  return longest + "_spill";
 }
 
 typedef struct Node {

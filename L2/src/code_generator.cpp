@@ -1,11 +1,11 @@
 #include <fstream>
 #include <iostream>
+#include <string>
 
 #include <L2.h>
 #include <code_generator.h>
 #include <graph_colorer.h>
 #include <spiller.h>
-#include <string>
 
 using namespace std;
 

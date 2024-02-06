@@ -1,48 +1,40 @@
 /*
 
 !.gitignore
+!.clang-format
 
 !/L1
 /L1/*
 !/L1/src
-!/L1/.clang-format
 
 !/L2
 /L2/*
 !/L2/src
-!/L2/.clang-format
 
 !/L3
 /L3/*
 !/L3/src
-!/L3/.clang-format
 
 !/LA
 /LA/*
 !/LA/src
-!/LA/.clang-format
 
 !/LB
 /LB/*
 !/LB/src
-!/LB/.clang-format
 
 !/LC
 /LC/*
 !/LC/src
-!/LC/.clang-format
 
 !/LD
 /LD/*
 !/LD/src
-!/LD/.clang-format
 
 !/C
 /C/*
 !/C/src
-!/C/.clang-format
 
 !/IR
 /IR/*
 !/IR/src
-!/IR/.clang-format
