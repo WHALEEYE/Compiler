@@ -15,6 +15,7 @@ public:
 
   const Tile *getMatchedTile() const;
   void setMatchedTile(const Tile *tile, bool edge);
+  Status getStatus() const;
   virtual string toStr() const = 0;
 
 private:
