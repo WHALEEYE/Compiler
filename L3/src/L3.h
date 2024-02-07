@@ -177,62 +177,62 @@ private:
 class AssignInst : public Instruction {
 public:
   AssignInst(const Variable *lval, const Item *rval);
-  const Variable *getLval() const;
-  const Item *getRval() const;
+  const Variable *getLhs() const;
+  const Item *getRhs() const;
   std::string toStr() const override;
   void accept(Visitor &visitor) const override;
 
 private:
-  const Variable *lval;
-  const Item *rval;
+  const Variable *lhs;
+  const Item *rhs;
 };
 
 class ArithInst : public Instruction {
 public:
   ArithInst(const Variable *lval, const Value *arithLval, const ArithOp *op,
             const Value *arithRval);
-  const Variable *getLval() const;
-  const Value *getArithLval() const;
+  const Variable *getRst() const;
+  const Value *getLhs() const;
   const ArithOp *getOp() const;
-  const Value *getArithRval() const;
+  const Value *getRhs() const;
   std::string toStr() const override;
   void accept(Visitor &visitor) const override;
 
 private:
-  const Variable *lval;
-  const Value *arithLval;
+  const Variable *rst;
+  const Value *lhs;
   const ArithOp *op;
-  const Value *arithRval;
+  const Value *rhs;
 };
 
 class CompareInst : public Instruction {
 public:
   CompareInst(const Variable *lval, const Value *cmpLval, const CompareOp *op,
               const Value *cmpRval);
-  const Variable *getLval() const;
-  const Value *getCmpLval() const;
+  const Variable *getRst() const;
+  const Value *getLhs() const;
   const CompareOp *getOp() const;
-  const Value *getCmpRval() const;
+  const Value *getRhs() const;
   std::string toStr() const override;
   void accept(Visitor &visitor) const override;
 
 private:
-  const Variable *lval;
-  const Value *cmpLval;
+  const Variable *rst;
+  const Value *lhs;
   const CompareOp *op;
-  const Value *cmpRval;
+  const Value *rhs;
 };
 
 class LoadInst : public Instruction {
 public:
   LoadInst(const Variable *lval, const Variable *addr);
-  const Variable *getLval() const;
+  const Variable *getVal() const;
   const Variable *getAddr() const;
   std::string toStr() const override;
   void accept(Visitor &visitor) const override;
 
 private:
-  const Variable *lval;
+  const Variable *val;
   const Variable *addr;
 };
 
@@ -240,13 +240,13 @@ class StoreInst : public Instruction {
 public:
   StoreInst(const Variable *addr, const Value *rval);
   const Variable *getAddr() const;
-  const Value *getRval() const;
+  const Value *getVal() const;
   std::string toStr() const override;
   void accept(Visitor &visitor) const override;
 
 private:
   const Variable *addr;
-  const Value *rval;
+  const Value *val;
 };
 
 class RetInst : public Instruction {
@@ -317,14 +317,14 @@ private:
 class CallAssignInst : public Instruction {
 public:
   CallAssignInst(const Variable *lval, const Item *callee, const Arguments *args);
-  const Variable *getLval() const;
+  const Variable *getRst() const;
   const Item *getCallee() const;
   const Arguments *getArgs() const;
   std::string toStr() const override;
   void accept(Visitor &visitor) const override;
 
 private:
-  const Variable *lval;
+  const Variable *rst;
   const Item *callee;
   const Arguments *args;
 };
@@ -336,8 +336,6 @@ class Context {
 public:
   const std::vector<const Instruction *> &getInstructions() const;
   void addInstruction(const Instruction *inst);
-  bool isEmpty() const;
-  std::string toStr() const;
 
 private:
   std::vector<const Instruction *> instructions;
@@ -353,6 +351,7 @@ public:
   bool hasVariable(std::string name) const;
   const std::unordered_map<std::string, const Variable *> &getVariables() const;
   void addInstruction(Instruction *inst);
+  const std::vector<const Instruction *> &getInstructions() const;
   std::string toStr() const;
 
 private:

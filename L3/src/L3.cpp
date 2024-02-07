@@ -100,46 +100,45 @@ void Label::accept(Visitor &visitor) const { visitor.visit(this); }
 void Instruction::setContext(const Context *cxt) { this->cxt = cxt; }
 const Context *Instruction::getContext() const { return cxt; }
 
-AssignInst::AssignInst(const Variable *lval, const Item *rval) : lval{lval}, rval{rval} {}
-const Variable *AssignInst::getLval() const { return lval; }
-const Item *AssignInst::getRval() const { return rval; }
-string AssignInst::toStr() const { return lval->toStr() + " <- " + rval->toStr(); }
+AssignInst::AssignInst(const Variable *lhs, const Item *rhs) : lhs{lhs}, rhs{rhs} {}
+const Variable *AssignInst::getLhs() const { return lhs; }
+const Item *AssignInst::getRhs() const { return rhs; }
+string AssignInst::toStr() const { return lhs->toStr() + " <- " + rhs->toStr(); }
 void AssignInst::accept(Visitor &visitor) const { visitor.visit(this); }
 
-ArithInst::ArithInst(const Variable *lval, const Value *arithLval, const ArithOp *op,
-                     const Value *arithRval)
-    : lval(lval), arithLval(arithLval), op(op), arithRval(arithRval) {}
-const Variable *ArithInst::getLval() const { return lval; }
-const Value *ArithInst::getArithLval() const { return arithLval; }
+ArithInst::ArithInst(const Variable *rst, const Value *lhs, const ArithOp *op, const Value *rhs)
+    : rst(rst), lhs(lhs), op(op), rhs(rhs) {}
+const Variable *ArithInst::getRst() const { return rst; }
+const Value *ArithInst::getLhs() const { return lhs; }
 const ArithOp *ArithInst::getOp() const { return op; }
-const Value *ArithInst::getArithRval() const { return arithRval; }
+const Value *ArithInst::getRhs() const { return rhs; }
 string ArithInst::toStr() const {
-  return lval->toStr() + " <- " + arithLval->toStr() + " " + op->toStr() + " " + arithRval->toStr();
+  return rst->toStr() + " <- " + lhs->toStr() + " " + op->toStr() + " " + rhs->toStr();
 }
 void ArithInst::accept(Visitor &visitor) const { visitor.visit(this); }
 
-CompareInst::CompareInst(const Variable *lval, const Value *cmpLval, const CompareOp *op,
-                         const Value *cmpRval)
-    : lval{lval}, cmpLval{cmpLval}, op{op}, cmpRval{cmpRval} {}
-const Variable *CompareInst::getLval() const { return lval; }
+CompareInst::CompareInst(const Variable *rst, const Value *lhs, const CompareOp *op,
+                         const Value *rhs)
+    : rst{rst}, lhs{lhs}, op{op}, rhs{rhs} {}
+const Variable *CompareInst::getRst() const { return rst; }
 const CompareOp *CompareInst::getOp() const { return op; }
-const Value *CompareInst::getCmpLval() const { return cmpLval; }
-const Value *CompareInst::getCmpRval() const { return cmpRval; }
+const Value *CompareInst::getLhs() const { return lhs; }
+const Value *CompareInst::getRhs() const { return rhs; }
 string CompareInst::toStr() const {
-  return lval->toStr() + " <- " + cmpLval->toStr() + " " + op->toStr() + " " + cmpRval->toStr();
+  return rst->toStr() + " <- " + lhs->toStr() + " " + op->toStr() + " " + rhs->toStr();
 }
 void CompareInst::accept(Visitor &visitor) const { visitor.visit(this); }
 
-LoadInst::LoadInst(const Variable *lval, const Variable *addr) : lval{lval}, addr{addr} {}
-const Variable *LoadInst::getLval() const { return lval; }
+LoadInst::LoadInst(const Variable *val, const Variable *addr) : val{val}, addr{addr} {}
+const Variable *LoadInst::getVal() const { return val; }
 const Variable *LoadInst::getAddr() const { return addr; }
-string LoadInst::toStr() const { return lval->toStr() + " <- load " + addr->toStr(); }
+string LoadInst::toStr() const { return val->toStr() + " <- load " + addr->toStr(); }
 void LoadInst::accept(Visitor &visitor) const { visitor.visit(this); }
 
-StoreInst::StoreInst(const Variable *addr, const Value *rval) : addr{addr}, rval{rval} {}
+StoreInst::StoreInst(const Variable *addr, const Value *val) : addr{addr}, val{val} {}
 const Variable *StoreInst::getAddr() const { return addr; }
-const Value *StoreInst::getRval() const { return rval; }
-string StoreInst::toStr() const { return "store " + addr->toStr() + " <- " + rval->toStr(); }
+const Value *StoreInst::getVal() const { return val; }
+string StoreInst::toStr() const { return "store " + addr->toStr() + " <- " + val->toStr(); }
 void StoreInst::accept(Visitor &visitor) const { visitor.visit(this); }
 
 string RetInst::toStr() const { return "return"; }
@@ -173,24 +172,18 @@ const Arguments *CallInst::getArgs() const { return args; }
 string CallInst::toStr() const { return "call " + callee->toStr() + "(" + args->toStr() + ")"; }
 void CallInst::accept(Visitor &visitor) const { visitor.visit(this); }
 
-CallAssignInst::CallAssignInst(const Variable *lval, const Item *callee, const Arguments *args)
-    : lval{lval}, callee{callee}, args{args} {}
-const Variable *CallAssignInst::getLval() const { return lval; }
+CallAssignInst::CallAssignInst(const Variable *rst, const Item *callee, const Arguments *args)
+    : rst{rst}, callee{callee}, args{args} {}
+const Variable *CallAssignInst::getRst() const { return rst; }
 const Item *CallAssignInst::getCallee() const { return callee; }
 const Arguments *CallAssignInst::getArgs() const { return args; }
 string CallAssignInst::toStr() const {
-  return lval->toStr() + " <- call " + callee->toStr() + "(" + args->toStr() + ")";
+  return rst->toStr() + " <- call " + callee->toStr() + "(" + args->toStr() + ")";
 }
 void CallAssignInst::accept(Visitor &visitor) const { visitor.visit(this); }
 
 const vector<const Instruction *> &Context::getInstructions() const { return instructions; }
 void Context::addInstruction(const Instruction *inst) { instructions.push_back(inst); }
-string Context::toStr() const {
-  string str;
-  for (auto inst : instructions)
-    str += "  " + inst->toStr() + "\n";
-  return str;
-}
 
 Function::Function(string name) : name{name} {}
 string Function::getName() const { return name; }

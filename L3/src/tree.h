@@ -8,15 +8,19 @@ using namespace std;
 
 namespace L3 {
 class OperandNode;
+class TreeContext;
 
 class TreeNode {
 public:
   L2CodeBlockNode *getCodeBlock() const;
   void setCodeBlock(L2CodeBlockNode *codeBlock);
+  const TreeContext *getContext() const;
+  void setContext(TreeContext *context);
   virtual string toStr() const = 0;
 
 private:
   L2CodeBlockNode *codeBlock;
+  TreeContext *context;
 };
 
 class OperationNode : public TreeNode {};
@@ -25,6 +29,7 @@ public:
   OperandNode(const Item *operand);
   const Item *getOperand() const;
   OperationNode *getChild();
+  void setChild(OperationNode *child);
   string toStr() const override;
 
 private:
@@ -44,7 +49,7 @@ private:
   OperandNode *callee, *args;
 };
 
-class ReturnNode : public TreeNode {
+class ReturnNode : public OperationNode {
 public:
   string toStr() const override;
 };
@@ -59,7 +64,7 @@ private:
   OperandNode *val;
 };
 
-class AssignNode : public TreeNode {
+class AssignNode : public OperationNode {
 public:
   void setRhs(OperandNode *rhs);
   OperandNode *getRhs() const;
@@ -149,6 +154,15 @@ public:
 
 private:
   const Label *label;
+};
+
+class TreeContext {
+public:
+  void addTree(TreeNode *root);
+  const vector<TreeNode *> &getTrees() const;
+
+private:
+  vector<TreeNode *> roots;
 };
 
 const vector<TreeNode *> &constructTrees(Function *F);
