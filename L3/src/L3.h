@@ -2,7 +2,6 @@
 
 #include <string>
 #include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 namespace L3 {
@@ -87,13 +86,15 @@ public:
   static CompareOp *getCompareOp(ID id);
 
   std::string getName() const;
+  ID getID() const;
   std::string toStr() const override;
   void accept(Visitor &visitor) const override;
 
 private:
-  CompareOp(std::string name);
+  CompareOp(ID id, std::string name);
   static const std::unordered_map<ID, CompareOp *> enumMap;
 
+  const ID id;
   std::string name;
 };
 
@@ -103,13 +104,15 @@ public:
   static ArithOp *getArithOp(ID id);
 
   std::string getName() const;
+  ID getID() const;
   std::string toStr() const override;
   void accept(Visitor &visitor) const override;
 
 private:
-  ArithOp(std::string name);
+  ArithOp(ID id, std::string name);
   static const std::unordered_map<ID, ArithOp *> enumMap;
 
+  const ID id;
   std::string name;
 };
 
@@ -123,9 +126,10 @@ public:
   void accept(Visitor &visitor) const override;
 
 private:
-  RuntimeFunction(std::string name);
+  RuntimeFunction(ID id, std::string name);
   static const std::unordered_map<ID, RuntimeFunction *> enumMap;
 
+  const ID id;
   std::string name;
 };
 
@@ -154,10 +158,17 @@ private:
 /*
  * Instruction interface.
  */
+class Context;
+
 class Instruction {
 public:
   virtual std::string toStr() const = 0;
   virtual void accept(Visitor &visitor) const = 0;
+  void setContext(const Context *cxt);
+  const Context *getContext() const;
+
+private:
+  const Context *cxt;
 };
 
 /*
@@ -321,26 +332,15 @@ private:
 /*
  * Structres.
  */
-class BasicBlock {
+class Context {
 public:
   const std::vector<const Instruction *> &getInstructions() const;
   void addInstruction(const Instruction *inst);
-  const std::unordered_set<BasicBlock *> &getPredecessors() const;
-  void addPredecessor(BasicBlock *BB);
-  void removePredecessor(BasicBlock *BB);
-  const std::unordered_set<BasicBlock *> &getSuccessors() const;
-  void addSuccessor(BasicBlock *BB);
-  void removeSuccessor(BasicBlock *BB);
-  const Instruction *getFirstInstruction() const;
-  const Instruction *getTerminator() const;
+  bool isEmpty() const;
   std::string toStr() const;
 
 private:
   std::vector<const Instruction *> instructions;
-  std::unordered_set<BasicBlock *> predecessors;
-  std::unordered_set<BasicBlock *> successors;
-
-  friend void spillInBB(BasicBlock *BB);
 };
 
 class Function {
@@ -349,39 +349,35 @@ public:
   std::string getName() const;
   const Parameters *getParams() const;
   void setParams(const Parameters *params);
-  const std::vector<BasicBlock *> &getBasicBlocks() const;
-  void addBasicBlock(BasicBlock *BB);
-  BasicBlock *getCurrBasicBlock() const;
-  void popCurrBasicBlock();
   const Variable *getVariable(std::string name);
   bool hasVariable(std::string name) const;
   const std::unordered_map<std::string, const Variable *> &getVariables() const;
+  void addInstruction(Instruction *inst);
   std::string toStr() const;
 
 private:
   std::string name;
   const Parameters *params;
-  std::vector<BasicBlock *> basicBlocks;
+  std::vector<const Instruction *> instructions;
   std::unordered_map<std::string, const Variable *> variables;
 };
 
 class Program {
 public:
-  Program() = default;
-  std::string getEntryPointLabel() const;
-  void setEntryPointLabel(std::string label);
+  Program();
   const std::vector<Function *> &getFunctions() const;
   void addFunction(Function *F);
   Function *getCurrFunction() const;
+  void addInstruction(Instruction *inst);
+  void newContext();
+  void closeContext();
   std::string toStr() const;
-
-protected:
-  std::string entryPointLabel;
 
 private:
   Program(const Program &) = delete;
   Program &operator=(const Program &) = delete;
   std::vector<Function *> functions;
+  Context *currContext;
 };
 
 class Visitor {

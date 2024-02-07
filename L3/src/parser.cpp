@@ -435,8 +435,7 @@ template <> struct action<assign_inst> {
     auto rval = itemStack.pop();
     auto lval = (const Variable *)itemStack.pop();
     auto I = new AssignInst(lval, rval);
-    auto currBB = P.getCurrFunction()->getCurrBasicBlock();
-    currBB->addInstruction(I);
+    P.addInstruction(I);
     debug("parsed assignment instruction " + I->toStr());
   }
 };
@@ -448,8 +447,7 @@ template <> struct action<arith_inst> {
     auto arithLval = (const Value *)itemStack.pop();
     auto lval = (const Variable *)itemStack.pop();
     auto I = new ArithInst(lval, arithLval, op, arithRval);
-    auto currBB = P.getCurrFunction()->getCurrBasicBlock();
-    currBB->addInstruction(I);
+    P.addInstruction(I);
     debug("parsed arithmetic instruction " + I->toStr());
   }
 };
@@ -461,8 +459,7 @@ template <> struct action<comp_inst> {
     auto compLval = (const Value *)itemStack.pop();
     auto lval = (const Variable *)itemStack.pop();
     auto I = new CompareInst(lval, compLval, cmp, compRval);
-    auto currBB = P.getCurrFunction()->getCurrBasicBlock();
-    currBB->addInstruction(I);
+    P.addInstruction(I);
     debug("parsed comparison instruction " + I->toStr());
   }
 };
@@ -472,8 +469,7 @@ template <> struct action<load_inst> {
     auto addr = (const Variable *)itemStack.pop();
     auto lval = (const Variable *)itemStack.pop();
     auto I = new LoadInst(lval, addr);
-    auto currBB = P.getCurrFunction()->getCurrBasicBlock();
-    currBB->addInstruction(I);
+    P.addInstruction(I);
     debug("parsed load instruction " + I->toStr());
   }
 };
@@ -483,8 +479,7 @@ template <> struct action<store_inst> {
     auto rval = (const Value *)itemStack.pop();
     auto addr = (const Variable *)itemStack.pop();
     auto I = new StoreInst(addr, rval);
-    auto currBB = P.getCurrFunction()->getCurrBasicBlock();
-    currBB->addInstruction(I);
+    P.addInstruction(I);
     debug("parsed store instruction " + I->toStr());
   }
 };
@@ -492,12 +487,8 @@ template <> struct action<store_inst> {
 template <> struct action<ret_inst> {
   template <typename Input> static void apply(const Input &in, Program &P) {
     auto I = new RetInst();
-    auto currBB = P.getCurrFunction()->getCurrBasicBlock();
-    currBB->addInstruction(I);
-
-    // next instruction is in a new BB, but is not a successor of currBB
-    auto newBB = new BasicBlock();
-    P.getCurrFunction()->addBasicBlock(newBB);
+    P.addInstruction(I);
+    P.newContext();
     debug("parsed return instruction " + I->toStr());
   }
 };
@@ -507,12 +498,8 @@ template <> struct action<ret_val_inst> {
     debug("parsed return value instruction");
     auto rval = (const Value *)itemStack.pop();
     auto I = new RetValueInst(rval);
-    auto currBB = P.getCurrFunction()->getCurrBasicBlock();
-    currBB->addInstruction(I);
-
-    // next instruction is in a new BB, but is not a successor of currBB
-    auto newBB = new BasicBlock();
-    P.getCurrFunction()->addBasicBlock(newBB);
+    P.addInstruction(I);
+    P.newContext();
     debug("parsed return value instruction " + I->toStr());
   }
 };
@@ -521,18 +508,9 @@ template <> struct action<label_inst> {
   template <typename Input> static void apply(const Input &in, Program &P) {
     auto label = new Label(in.string());
     auto I = new LabelInst(label);
-
-    auto currBB = P.getCurrFunction()->getCurrBasicBlock();
-
-    if (!currBB->getInstructions().empty()) {
-      // last instruction is not goto or cjump
-      auto newBB = new BasicBlock();
-      newBB->addPredecessor(currBB);
-      currBB->addSuccessor(newBB);
-      P.getCurrFunction()->addBasicBlock(newBB);
-      currBB = newBB;
-    }
-    currBB->addInstruction(I);
+    P.closeContext();
+    P.addInstruction(I);
+    P.newContext();
     debug("parsed label instruction " + I->toStr());
   }
 };
@@ -541,12 +519,8 @@ template <> struct action<branch_inst> {
   template <typename Input> static void apply(const Input &in, Program &P) {
     auto label = (const Label *)itemStack.pop();
     auto I = new BranchInst(label);
-    auto currBB = P.getCurrFunction()->getCurrBasicBlock();
-    currBB->addInstruction(I);
-
-    // next instruction is in a new basic block
-    auto newBB = new BasicBlock();
-    P.getCurrFunction()->addBasicBlock(newBB);
+    P.addInstruction(I);
+    P.newContext();
     debug("parsed branch instruction " + I->toStr());
   }
 };
@@ -556,14 +530,8 @@ template <> struct action<cond_branch_inst> {
     auto label = (const Label *)itemStack.pop();
     auto condition = (const Value *)itemStack.pop();
     auto I = new CondBranchInst(condition, label);
-    auto currBB = P.getCurrFunction()->getCurrBasicBlock();
-    currBB->addInstruction(I);
-
-    // next instruction is in a new BB, and is a successor of currBB
-    auto newBB = new BasicBlock();
-    newBB->addPredecessor(currBB);
-    currBB->addSuccessor(newBB);
-    P.getCurrFunction()->addBasicBlock(newBB);
+    P.addInstruction(I);
+    P.newContext();
     debug("parsed conditional branch instruction " + I->toStr());
   }
 };
@@ -573,8 +541,9 @@ template <> struct action<call_inst> {
     auto args = (const Arguments *)itemStack.pop();
     auto callee = itemStack.pop();
     auto I = new CallInst(callee, args);
-    auto currBB = P.getCurrFunction()->getCurrBasicBlock();
-    currBB->addInstruction(I);
+    P.closeContext();
+    P.addInstruction(I);
+    P.newContext();
     debug("parsed call instruction " + I->toStr());
   }
 };
@@ -585,45 +554,12 @@ template <> struct action<call_assign_inst> {
     auto callee = itemStack.pop();
     auto lval = (const Variable *)itemStack.pop();
     auto I = new CallAssignInst(lval, callee, args);
-    auto currBB = P.getCurrFunction()->getCurrBasicBlock();
-    currBB->addInstruction(I);
+    P.closeContext();
+    P.addInstruction(I);
+    P.newContext();
     debug("parsed call assignment instruction " + I->toStr());
   }
 };
-
-void linkBasicBlocks(Function *F) {
-  debug("Started linking basic blocks.");
-
-  // emit empty basic blocks that may at the end of the func
-  auto lastBB = F->getCurrBasicBlock();
-  if (lastBB->getInstructions().empty()) {
-    for (auto pred : lastBB->getPredecessors())
-      pred->removeSuccessor(lastBB);
-    F->popCurrBasicBlock();
-  }
-
-  std::map<std::string, BasicBlock *> labelToBB;
-  // find all basic blocks that starts with a label
-  // these BBs may have predecessors that are not linked yet
-  for (auto &BB : F->getBasicBlocks())
-    if (auto inst = dynamic_cast<const LabelInst *>(BB->getFirstInstruction()))
-      labelToBB[inst->getLabel()->getName()] = BB;
-
-  // link all basic blocks
-  for (auto &BB : F->getBasicBlocks()) {
-    if (auto inst = dynamic_cast<const BranchInst *>(BB->getTerminator())) {
-      auto label = inst->getLabel();
-      auto targetBB = labelToBB[label->getName()];
-      BB->addSuccessor(targetBB);
-      targetBB->addPredecessor(BB);
-    } else if (auto inst = dynamic_cast<const CondBranchInst *>(BB->getTerminator())) {
-      auto label = inst->getLabel();
-      auto targetBB = labelToBB[label->getName()];
-      BB->addSuccessor(targetBB);
-      targetBB->addPredecessor(BB);
-    }
-  }
-}
 
 Program *parseFile(char *fileName) {
 
@@ -641,8 +577,6 @@ Program *parseFile(char *fileName) {
   file_input<> fileInput(fileName);
   auto P = new Program();
   parse<grammar, action>(fileInput, *P);
-  for (auto F : P->getFunctions())
-    linkBasicBlocks(F);
   return P;
 }
 

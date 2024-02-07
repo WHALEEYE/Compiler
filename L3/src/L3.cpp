@@ -1,7 +1,6 @@
 #include <cstdint>
 #include <stdexcept>
 #include <unordered_map>
-#include <unordered_set>
 #include <vector>
 using namespace std;
 
@@ -51,38 +50,39 @@ string Parameters::toStr() const {
 }
 void Parameters::accept(Visitor &visitor) const { visitor.visit(this); }
 
-CompareOp::CompareOp(string name) : name{name} {}
+CompareOp::CompareOp(ID id, string name) : id(id), name{name} {}
 CompareOp *CompareOp::getCompareOp(ID id) { return enumMap.at(id); }
 string CompareOp::getName() const { return name; }
 string CompareOp::toStr() const { return name; }
 void CompareOp::accept(Visitor &visitor) const { visitor.visit(this); }
 const unordered_map<CompareOp::ID, CompareOp *> CompareOp::enumMap = {
-    {ID::LESS_THAN, new CompareOp("<")},
-    {ID::LESS_EQUAL, new CompareOp("<=")},
-    {ID::EQUAL, new CompareOp("=")},
-    {ID::GREATER_EQUAL, new CompareOp(">=")},
-    {ID::GREATER_THAN, new CompareOp(">")}};
+    {ID::LESS_THAN, new CompareOp(ID::LESS_THAN, "<")},
+    {ID::LESS_EQUAL, new CompareOp(ID::LESS_EQUAL, "<=")},
+    {ID::EQUAL, new CompareOp(ID::EQUAL, "=")},
+    {ID::GREATER_EQUAL, new CompareOp(ID::GREATER_EQUAL, ">=")},
+    {ID::GREATER_THAN, new CompareOp(ID::GREATER_THAN, ">")}};
 
-ArithOp::ArithOp(string name) : name{name} {}
+ArithOp::ArithOp(ID id, string name) : id(id), name{name} {}
 ArithOp *ArithOp::getArithOp(ID id) { return enumMap.at(id); }
 string ArithOp::getName() const { return name; }
 string ArithOp::toStr() const { return name; }
 void ArithOp::accept(Visitor &visitor) const { visitor.visit(this); }
 const unordered_map<ArithOp::ID, ArithOp *> ArithOp::enumMap = {
-    {ID::ADD, new ArithOp("+")}, {ID::SUB, new ArithOp("-")}, {ID::MUL, new ArithOp("*")},
-    {ID::AND, new ArithOp("&")}, {ID::LS, new ArithOp("<<")}, {ID::RS, new ArithOp(">>")}};
+    {ID::ADD, new ArithOp(ID::ADD, "+")}, {ID::SUB, new ArithOp(ID::SUB, "-")},
+    {ID::MUL, new ArithOp(ID::MUL, "*")}, {ID::AND, new ArithOp(ID::AND, "&")},
+    {ID::LS, new ArithOp(ID::LS, "<<")},  {ID::RS, new ArithOp(ID::RS, ">>")}};
 
-RuntimeFunction::RuntimeFunction(string name) : name{name} {}
+RuntimeFunction::RuntimeFunction(ID id, string name) : id(id), name{name} {}
 RuntimeFunction *RuntimeFunction::getRuntimeFunction(ID id) { return enumMap.at(id); }
 string RuntimeFunction::getName() const { return name; }
 string RuntimeFunction::toStr() const { return name; }
 void RuntimeFunction::accept(Visitor &visitor) const { visitor.visit(this); }
 const unordered_map<RuntimeFunction::ID, RuntimeFunction *> RuntimeFunction::enumMap = {
-    {ID::PRINT, new RuntimeFunction("print")},
-    {ID::ALLOCATE, new RuntimeFunction("allocate")},
-    {ID::INPUT, new RuntimeFunction("input")},
-    {ID::TUPLE_ERROR, new RuntimeFunction("tuple-error")},
-    {ID::TENSOR_ERROR, new RuntimeFunction("tensor-error")}};
+    {ID::PRINT, new RuntimeFunction(ID::PRINT, "print")},
+    {ID::ALLOCATE, new RuntimeFunction(ID::ALLOCATE, "allocate")},
+    {ID::INPUT, new RuntimeFunction(ID::INPUT, "input")},
+    {ID::TUPLE_ERROR, new RuntimeFunction(ID::TUPLE_ERROR, "tuple-error")},
+    {ID::TENSOR_ERROR, new RuntimeFunction(ID::TENSOR_ERROR, "tensor-error")}};
 
 FunctionName::FunctionName(string name) : name{name} {}
 string FunctionName::getName() const { return name; }
@@ -97,6 +97,9 @@ void Label::accept(Visitor &visitor) const { visitor.visit(this); }
 /*
  *  Instructions.
  */
+void Instruction::setContext(const Context *cxt) { this->cxt = cxt; }
+const Context *Instruction::getContext() const { return cxt; }
+
 AssignInst::AssignInst(const Variable *lval, const Item *rval) : lval{lval}, rval{rval} {}
 const Variable *AssignInst::getLval() const { return lval; }
 const Item *AssignInst::getRval() const { return rval; }
@@ -180,34 +183,19 @@ string CallAssignInst::toStr() const {
 }
 void CallAssignInst::accept(Visitor &visitor) const { visitor.visit(this); }
 
-const vector<const Instruction *> &BasicBlock::getInstructions() const { return instructions; }
-void BasicBlock::addInstruction(const Instruction *inst) { instructions.push_back(inst); }
-const unordered_set<BasicBlock *> &BasicBlock::getSuccessors() const { return successors; }
-void BasicBlock::addSuccessor(BasicBlock *BB) { successors.insert(BB); }
-void BasicBlock::removeSuccessor(BasicBlock *BB) { successors.erase(BB); }
-const unordered_set<BasicBlock *> &BasicBlock::getPredecessors() const { return predecessors; }
-void BasicBlock::addPredecessor(BasicBlock *BB) { predecessors.insert(BB); }
-void BasicBlock::removePredecessor(BasicBlock *BB) { predecessors.erase(BB); }
-const Instruction *BasicBlock::getFirstInstruction() const { return instructions.front(); }
-const Instruction *BasicBlock::getTerminator() const { return instructions.back(); }
-string BasicBlock::toStr() const {
+const vector<const Instruction *> &Context::getInstructions() const { return instructions; }
+void Context::addInstruction(const Instruction *inst) { instructions.push_back(inst); }
+string Context::toStr() const {
   string str;
   for (auto inst : instructions)
     str += "  " + inst->toStr() + "\n";
   return str;
 }
 
-Function::Function(string name) : name{name} {
-  // start with an empty basic block
-  basicBlocks.push_back(new BasicBlock());
-}
+Function::Function(string name) : name{name} {}
 string Function::getName() const { return name; }
 const Parameters *Function::getParams() const { return params; }
 void Function::setParams(const Parameters *params) { this->params = params; }
-const vector<BasicBlock *> &Function::getBasicBlocks() const { return basicBlocks; }
-void Function::addBasicBlock(BasicBlock *BB) { basicBlocks.push_back(BB); }
-BasicBlock *Function::getCurrBasicBlock() const { return basicBlocks.back(); }
-void Function::popCurrBasicBlock() { basicBlocks.pop_back(); }
 const Variable *Function::getVariable(string name) {
   if (variables.find(name) == variables.end())
     variables[name] = new Variable(name);
@@ -215,20 +203,28 @@ const Variable *Function::getVariable(string name) {
 }
 bool Function::hasVariable(string name) const { return variables.find(name) != variables.end(); }
 const unordered_map<string, const Variable *> &Function::getVariables() const { return variables; }
+void Function::addInstruction(Instruction *inst) { instructions.push_back(inst); }
 string Function::toStr() const {
   string str;
   str += "define " + name + "(" + params->toStr() + ") {\n";
-  for (auto BB : basicBlocks)
-    str += BB->toStr();
+  for (auto inst : instructions)
+    str += "  " + inst->toStr() + "\n";
   str += "}\n";
   return str;
 }
 
-string Program::getEntryPointLabel() const { return entryPointLabel; }
-void Program::setEntryPointLabel(string label) { entryPointLabel = label; }
+Program::Program() { this->currContext = new Context(); }
 const vector<Function *> &Program::getFunctions() const { return functions; }
 void Program::addFunction(Function *F) { functions.push_back(F); }
 Function *Program::getCurrFunction() const { return functions.back(); }
+void Program::addInstruction(Instruction *inst) {
+  inst->setContext(currContext);
+  if (currContext)
+    currContext->addInstruction(inst);
+  getCurrFunction()->addInstruction(inst);
+}
+void Program::newContext() { this->currContext = new Context(); }
+void Program::closeContext() { this->currContext = nullptr; }
 string Program::toStr() const {
   string str;
   for (auto F : functions)

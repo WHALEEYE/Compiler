@@ -7,63 +7,149 @@ using namespace std;
 #include <tile.h>
 
 namespace L3 {
-class VariableNode;
+class OperandNode;
 
 class TreeNode {
 public:
-  enum class Status { UNMATCHED, MATCHED, PARTIAL_MATCHED };
-
-  const Tile *getMatchedTile() const;
-  void setMatchedTile(const Tile *tile, bool edge);
-  Status getStatus() const;
+  L2CodeBlockNode *getCodeBlock() const;
+  void setCodeBlock(L2CodeBlockNode *codeBlock);
   virtual string toStr() const = 0;
 
 private:
-  const Tile *matchedTile;
-  Status status;
+  L2CodeBlockNode *codeBlock;
 };
 
-class OperationNode : public TreeNode {
+class OperationNode : public TreeNode {};
+class OperandNode : public TreeNode {
 public:
-  enum class Operation {
-    ADD,
-    SUB,
-    MUL,
-    AND,
-    LEFT_SHIFT,
-    RIGHT_SHIFT,
-    BR,
-    COND_BR,
-    CALL,
-    RET,
-    RET_VAL,
-    STORE,
-    LOAD,
-    ASSIGN
-  };
-
-  OperationNode(Operation operation);
-  Operation getOperation() const;
-  VariableNode *getLeft();
-  VariableNode *getRight();
-  string toStr() const override;
-
-private:
-  const Operation operation;
-  VariableNode *left, *right;
-};
-
-class VariableNode : public TreeNode {
-public:
-  VariableNode(const Variable *variable);
-  const Variable *getVariable() const;
+  OperandNode(const Item *operand);
+  const Item *getOperand() const;
   OperationNode *getChild();
   string toStr() const override;
 
 private:
-  const Variable *variable;
+  const Item *operand;
   OperationNode *child;
 };
 
-const TreeNode &constructTree(Program *P);
+class CallNode : public OperationNode {
+public:
+  void setCallee(OperandNode *callee);
+  OperandNode *getCallee() const;
+  void setArgs(OperandNode *args);
+  OperandNode *getArgs() const;
+  string toStr() const override;
+
+private:
+  OperandNode *callee, *args;
+};
+
+class ReturnNode : public TreeNode {
+public:
+  string toStr() const override;
+};
+
+class ReturnValNode : public OperationNode {
+public:
+  void setVal(OperandNode *val);
+  OperandNode *getVal() const;
+  string toStr() const override;
+
+private:
+  OperandNode *val;
+};
+
+class AssignNode : public TreeNode {
+public:
+  void setRhs(OperandNode *rhs);
+  OperandNode *getRhs() const;
+  string toStr() const override;
+
+private:
+  OperandNode *rhs;
+};
+
+class CompareNode : public OperationNode {
+public:
+  void setOp(const CompareOp *op);
+  void setLhs(OperandNode *lhs);
+  void setRhs(OperandNode *rhs);
+  const CompareOp *getOp() const;
+  OperandNode *getLhs() const;
+  OperandNode *getRhs() const;
+  string toStr() const override;
+
+private:
+  const CompareOp *op;
+  OperandNode *lhs, *rhs;
+};
+
+class LoadNode : public OperationNode {
+public:
+  void setAddr(OperandNode *addr);
+  OperandNode *getAddr() const;
+  string toStr() const override;
+
+private:
+  OperandNode *addr;
+};
+
+class StoreNode : public OperationNode {
+public:
+  void setVal(OperandNode *val);
+  OperandNode *getVal() const;
+  string toStr() const override;
+
+private:
+  OperandNode *val;
+};
+
+class ArithmeticNode : public OperationNode {
+public:
+  void setOp(const ArithOp *op);
+  void setLhs(OperandNode *lhs);
+  void setRhs(OperandNode *rhs);
+  const ArithOp *getOp() const;
+  OperandNode *getLhs() const;
+  OperandNode *getRhs() const;
+  string toStr() const override;
+
+private:
+  const ArithOp *op;
+  OperandNode *lhs, *rhs;
+};
+
+class BranchNode : public OperationNode {
+public:
+  void setLabel(OperandNode *label);
+  OperandNode *getLabel() const;
+  string toStr() const override;
+
+private:
+  OperandNode *label;
+};
+
+class CondBranchNode : public OperationNode {
+public:
+  void setCond(OperandNode *cond);
+  void setLabel(OperandNode *label);
+  OperandNode *getCond() const;
+  OperandNode *getLabel() const;
+  string toStr() const override;
+
+private:
+  OperandNode *cond, *label;
+};
+
+class LabelNode : public OperationNode {
+public:
+  void setLabel(const Label *label);
+  const Label *getLabel() const;
+  string toStr() const override;
+
+private:
+  const Label *label;
+};
+
+const vector<TreeNode *> &constructTrees(Function *F);
 } // namespace L3
