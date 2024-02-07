@@ -6,6 +6,8 @@
 
 namespace L3 {
 
+class Program;
+
 class Visitor;
 
 class Item {
@@ -153,6 +155,7 @@ public:
 
 private:
   std::string name;
+  friend void globalizeLabels(Program *P);
 };
 
 /*
@@ -348,8 +351,10 @@ public:
   const Parameters *getParams() const;
   void setParams(const Parameters *params);
   const Variable *getVariable(std::string name);
+  const Label *getLabel(std::string name);
   bool hasVariable(std::string name) const;
   const std::unordered_map<std::string, const Variable *> &getVariables() const;
+  const std::unordered_map<std::string, Label *> &getLabels() const;
   void addInstruction(Instruction *inst);
   const std::vector<const Instruction *> &getInstructions() const;
   std::string toStr() const;
@@ -359,6 +364,7 @@ private:
   const Parameters *params;
   std::vector<const Instruction *> instructions;
   std::unordered_map<std::string, const Variable *> variables;
+  std::unordered_map<std::string, Label *> labels;
 };
 
 class Program {
@@ -370,6 +376,8 @@ public:
   void addInstruction(Instruction *inst);
   void newContext();
   void closeContext();
+  const Variable *getVariable(std::string name);
+  const Label *getLabel(std::string name);
   std::string toStr() const;
 
 private:

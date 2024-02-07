@@ -361,7 +361,7 @@ template <> struct action<N> {
 
 template <> struct action<label> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto l = new Label(in.string());
+    auto l = P.getLabel(in.string());
     itemStack.push(l);
     debug("parsed label " + l->getName());
   }
@@ -386,7 +386,7 @@ template <> struct action<func> {
 template <> struct action<var> {
   template <typename Input> static void apply(const Input &in, Program &P) {
     auto F = P.getCurrFunction();
-    auto var = F->getVariable(in.string());
+    auto var = P.getVariable(in.string());
     itemStack.push(var);
     debug("parsed variable " + var->toStr());
   }
@@ -506,7 +506,7 @@ template <> struct action<ret_val_inst> {
 
 template <> struct action<label_inst> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto label = new Label(in.string());
+    auto label = P.getLabel(in.string());
     auto I = new LabelInst(label);
     P.closeContext();
     P.addInstruction(I);

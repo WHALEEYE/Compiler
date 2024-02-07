@@ -9,6 +9,7 @@ using namespace std;
 #include <L3.h>
 #include <code_generator.h>
 #include <helper.h>
+#include <label_globalizer.h>
 #include <parser.h>
 
 void printHelp(char *progName) {
@@ -59,14 +60,18 @@ int main(int argc, char **argv) {
    */
   L3::Program *P = L3::parseFile(argv[optind]);
 
-  if (verbose)
+  if (verbose) {
+    cout << "Program before globalizing labels:" << endl;
     cout << P->toStr();
+    L3::globalizeLabels(P);
+    cout << "Program after globalizing labels:" << endl;
+    cout << P->toStr();
+  }
 
   /*
    * Generate the target code.
    */
   if (enableCodeGenerator) {
-    
   }
 
   return 0;

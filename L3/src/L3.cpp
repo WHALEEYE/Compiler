@@ -194,8 +194,14 @@ const Variable *Function::getVariable(string name) {
     variables[name] = new Variable(name);
   return variables[name];
 }
+const Label *Function::getLabel(string name) {
+  if (labels.find(name) == labels.end())
+    labels[name] = new Label(name);
+  return labels[name];
+}
 bool Function::hasVariable(string name) const { return variables.find(name) != variables.end(); }
 const unordered_map<string, const Variable *> &Function::getVariables() const { return variables; }
+const unordered_map<string, Label *> &Function::getLabels() const { return labels; }
 void Function::addInstruction(Instruction *inst) { instructions.push_back(inst); }
 string Function::toStr() const {
   string str;
@@ -218,6 +224,8 @@ void Program::addInstruction(Instruction *inst) {
 }
 void Program::newContext() { this->currContext = new Context(); }
 void Program::closeContext() { this->currContext = nullptr; }
+const Label *Program::getLabel(string name) { return getCurrFunction()->getLabel(name); }
+const Variable *Program::getVariable(string name) { return getCurrFunction()->getVariable(name); }
 string Program::toStr() const {
   string str;
   for (auto F : functions)
