@@ -125,6 +125,7 @@ public:
 
   std::string getName() const;
   std::string toStr() const override;
+  ID getID() const;
   void accept(Visitor &visitor) const override;
 
 private:
@@ -155,7 +156,7 @@ public:
 
 private:
   std::string name;
-  friend void globalizeLabels(Program *P);
+  friend void renameLabel(Label *label, std::string newName);
 };
 
 /*

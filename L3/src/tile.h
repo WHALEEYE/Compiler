@@ -1,4 +1,6 @@
 #pragma once
+#include "tree.h"
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -8,40 +10,46 @@ using namespace std;
 namespace L3 {
 class TreeNode;
 
-class L2CodeBlockNode {
+class CodeBlock {
 public:
   string toStr() const;
 
   void addInstructions(vector<string> &insts);
-  void addChild(const L2CodeBlockNode *child);
-  void removeChild(const L2CodeBlockNode *child);
-  void setParent(const L2CodeBlockNode *parent);
-  bool hasChild() const;
+  const vector<string> &getInstructions() const;
+  void addChild(const CodeBlock *child);
+  const unordered_set<const CodeBlock *> &getChildren() const;
 
 private:
-  vector<string> insts;
-  const L2CodeBlockNode *parent;
-  unordered_set<const L2CodeBlockNode *> children;
+  vector<string> instructions;
+  const CodeBlock *parent;
+  unordered_set<const CodeBlock *> children;
 };
 
-class TilingResult {
+class FunctionTilingResult {
 public:
-  TilingResult() = default;
-  void addBlockRoot(const L2CodeBlockNode *root);
-  string dump() const;
+  FunctionTilingResult() = default;
+  const vector<string> &assembleCode() const;
 
 private:
-  vector<const L2CodeBlockNode *> roots;
+  // Code block roots in order. Each root corresponds to a tree.
+  vector<const CodeBlock *> roots;
+  unordered_map<const TreeNode *, CodeBlock *> nodeToBlock;
 
-  TilingResult &operator=(const TilingResult &) = delete;
-  TilingResult(const TilingResult &) = delete;
+  FunctionTilingResult &operator=(const FunctionTilingResult &) = delete;
+  FunctionTilingResult(const FunctionTilingResult &) = delete;
+
+  friend void addBlock(const TreeNode *root, const vector<const TreeNode *> &leaves,
+                       CodeBlock *newBlock, FunctionTilingResult &result);
 };
+
+typedef unordered_map<const Function *, const FunctionTilingResult &> TilingResult;
 
 class Tile {
 public:
-  static const TilingResult &doTiling(vector<TreeNode *> roots);
-  virtual int match(TreeNode *node) const = 0;
-  virtual vector<TreeNode *> apply(TreeNode *node, TilingResult &result) const = 0;
+  virtual int match(const TreeNode *node) const = 0;
+  virtual vector<const TreeNode *> apply(const TreeNode *node,
+                                         FunctionTilingResult &result) const = 0;
+  static const unordered_set<const Tile *> &getTiles();
 
 private:
   static const std::unordered_set<const Tile *> tiles;
@@ -49,8 +57,8 @@ private:
 
 class ArithTile : public Tile {
 public:
-  int match(TreeNode *node) const override;
-  vector<TreeNode *> apply(TreeNode *node, TilingResult &result) const override;
+  int match(const TreeNode *node) const override;
+  vector<const TreeNode *> apply(const TreeNode *node, FunctionTilingResult &result) const override;
   static const ArithTile *getInstance();
 
 private:
@@ -62,8 +70,8 @@ private:
 
 class CompareTile : public Tile {
 public:
-  int match(TreeNode *node) const override;
-  vector<TreeNode *> apply(TreeNode *node, TilingResult &result) const override;
+  int match(const TreeNode *node) const override;
+  vector<const TreeNode *> apply(const TreeNode *node, FunctionTilingResult &result) const override;
   static const CompareTile *getInstance();
 
 private:
@@ -75,8 +83,8 @@ private:
 
 class AssignTile : public Tile {
 public:
-  int match(TreeNode *node) const override;
-  vector<TreeNode *> apply(TreeNode *node, TilingResult &result) const override;
+  int match(const TreeNode *node) const override;
+  vector<const TreeNode *> apply(const TreeNode *node, FunctionTilingResult &result) const override;
   static const AssignTile *getInstance();
 
 private:
@@ -88,8 +96,8 @@ private:
 
 class StoreTile : public Tile {
 public:
-  int match(TreeNode *node) const override;
-  vector<TreeNode *> apply(TreeNode *node, TilingResult &result) const override;
+  int match(const TreeNode *node) const override;
+  vector<const TreeNode *> apply(const TreeNode *node, FunctionTilingResult &result) const override;
   static const StoreTile *getInstance();
 
 private:
@@ -101,8 +109,8 @@ private:
 
 class LoadTile : public Tile {
 public:
-  int match(TreeNode *node) const override;
-  vector<TreeNode *> apply(TreeNode *node, TilingResult &result) const override;
+  int match(const TreeNode *node) const override;
+  vector<const TreeNode *> apply(const TreeNode *node, FunctionTilingResult &result) const override;
   static const LoadTile *getInstance();
 
 private:
@@ -114,8 +122,8 @@ private:
 
 class CallTile : public Tile {
 public:
-  int match(TreeNode *node) const override;
-  vector<TreeNode *> apply(TreeNode *node, TilingResult &result) const override;
+  int match(const TreeNode *node) const override;
+  vector<const TreeNode *> apply(const TreeNode *node, FunctionTilingResult &result) const override;
   static const CallTile *getInstance();
 
 private:
@@ -127,8 +135,8 @@ private:
 
 class CallAssignTile : public Tile {
 public:
-  int match(TreeNode *node) const override;
-  vector<TreeNode *> apply(TreeNode *node, TilingResult &result) const override;
+  int match(const TreeNode *node) const override;
+  vector<const TreeNode *> apply(const TreeNode *node, FunctionTilingResult &result) const override;
   static const CallAssignTile *getInstance();
 
 private:
@@ -140,8 +148,8 @@ private:
 
 class ReturnTile : public Tile {
 public:
-  int match(TreeNode *node) const override;
-  vector<TreeNode *> apply(TreeNode *node, TilingResult &result) const override;
+  int match(const TreeNode *node) const override;
+  vector<const TreeNode *> apply(const TreeNode *node, FunctionTilingResult &result) const override;
   static const ReturnTile *getInstance();
 
 private:
@@ -153,8 +161,8 @@ private:
 
 class ReturnValTile : public Tile {
 public:
-  int match(TreeNode *node) const override;
-  vector<TreeNode *> apply(TreeNode *node, TilingResult &result) const override;
+  int match(const TreeNode *node) const override;
+  vector<const TreeNode *> apply(const TreeNode *node, FunctionTilingResult &result) const override;
   static const ReturnValTile *getInstance();
 
 private:
@@ -166,8 +174,8 @@ private:
 
 class BranchTile : public Tile {
 public:
-  int match(TreeNode *node) const override;
-  vector<TreeNode *> apply(TreeNode *node, TilingResult &result) const override;
+  int match(const TreeNode *node) const override;
+  vector<const TreeNode *> apply(const TreeNode *node, FunctionTilingResult &result) const override;
   static const BranchTile *getInstance();
 
 private:
@@ -179,8 +187,8 @@ private:
 
 class CondBranchTile : public Tile {
 public:
-  int match(TreeNode *node) const override;
-  vector<TreeNode *> apply(TreeNode *node, TilingResult &result) const override;
+  int match(const TreeNode *node) const override;
+  vector<const TreeNode *> apply(const TreeNode *node, FunctionTilingResult &result) const override;
   static const CondBranchTile *getInstance();
 
 private:
@@ -192,8 +200,8 @@ private:
 
 class LabelTile : public Tile {
 public:
-  int match(TreeNode *node) const override;
-  vector<TreeNode *> apply(TreeNode *node, TilingResult &result) const override;
+  int match(const TreeNode *node) const override;
+  vector<const TreeNode *> apply(const TreeNode *node, FunctionTilingResult &result) const override;
   static const LabelTile *getInstance();
 
 private:
@@ -202,5 +210,7 @@ private:
   LabelTile &operator=(const LabelTile &) = delete;
   static const LabelTile *instance;
 };
+
+const TilingResult &doTiling(const TreeResult &treeResult);
 
 } // namespace L3

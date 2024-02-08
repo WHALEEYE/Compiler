@@ -53,6 +53,7 @@ void Parameters::accept(Visitor &visitor) const { visitor.visit(this); }
 CompareOp::CompareOp(ID id, string name) : id(id), name{name} {}
 CompareOp *CompareOp::getCompareOp(ID id) { return enumMap.at(id); }
 string CompareOp::getName() const { return name; }
+CompareOp::ID CompareOp::getID() const { return id; }
 string CompareOp::toStr() const { return name; }
 void CompareOp::accept(Visitor &visitor) const { visitor.visit(this); }
 const unordered_map<CompareOp::ID, CompareOp *> CompareOp::enumMap = {
@@ -65,6 +66,7 @@ const unordered_map<CompareOp::ID, CompareOp *> CompareOp::enumMap = {
 ArithOp::ArithOp(ID id, string name) : id(id), name{name} {}
 ArithOp *ArithOp::getArithOp(ID id) { return enumMap.at(id); }
 string ArithOp::getName() const { return name; }
+ArithOp::ID ArithOp::getID() const { return id; }
 string ArithOp::toStr() const { return name; }
 void ArithOp::accept(Visitor &visitor) const { visitor.visit(this); }
 const unordered_map<ArithOp::ID, ArithOp *> ArithOp::enumMap = {
@@ -75,6 +77,7 @@ const unordered_map<ArithOp::ID, ArithOp *> ArithOp::enumMap = {
 RuntimeFunction::RuntimeFunction(ID id, string name) : id(id), name{name} {}
 RuntimeFunction *RuntimeFunction::getRuntimeFunction(ID id) { return enumMap.at(id); }
 string RuntimeFunction::getName() const { return name; }
+RuntimeFunction::ID RuntimeFunction::getID() const { return id; }
 string RuntimeFunction::toStr() const { return name; }
 void RuntimeFunction::accept(Visitor &visitor) const { visitor.visit(this); }
 const unordered_map<RuntimeFunction::ID, RuntimeFunction *> RuntimeFunction::enumMap = {
@@ -203,6 +206,7 @@ bool Function::hasVariable(string name) const { return variables.find(name) != v
 const unordered_map<string, const Variable *> &Function::getVariables() const { return variables; }
 const unordered_map<string, Label *> &Function::getLabels() const { return labels; }
 void Function::addInstruction(Instruction *inst) { instructions.push_back(inst); }
+const vector<const Instruction *> &Function::getInstructions() const { return instructions; }
 string Function::toStr() const {
   string str;
   str += "define " + name + "(" + params->toStr() + ") {\n";

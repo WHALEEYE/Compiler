@@ -69,11 +69,11 @@ struct arrow : TAO_PEGTL_STRING("<-") {};
 
 struct def : TAO_PEGTL_STRING("define") {};
 
-struct less_than : TAO_PEGTL_STRING("<") {};
+struct less_than : one<'<'> {};
 struct less_equal : TAO_PEGTL_STRING("<=") {};
 struct equal : one<'='> {};
 struct greater_equal : TAO_PEGTL_STRING(">=") {};
-struct greater_than : TAO_PEGTL_STRING(">") {};
+struct greater_than : one<'>'> {};
 
 struct ls_op : TAO_PEGTL_STRING("<<") {};
 struct rs_op : TAO_PEGTL_STRING(">>") {};
@@ -114,8 +114,8 @@ struct var : seq<one<'%'>, name> {};
 /*
  * Combined rules.
  */
-// cmp ::= < | <= | = | >= | >
-struct cmp : sor<less_than, less_equal, equal, greater_equal, greater_than> {};
+// cmp ::= <= | < | = | >= | >
+struct cmp : sor<less_equal, less_than, equal, greater_equal, greater_than> {};
 
 // op ::= + | - | * | & | << | >>
 struct op : sor<add_op, sub_op, mul_op, and_op, ls_op, rs_op> {};
@@ -143,11 +143,11 @@ struct callee : sor<u, print, allocate, input, tuple_error, tensor_error> {};
 /*
 * Instructions.
 */
+struct comp_inst : seq<var, spaces, arrow, spaces, t, spaces, cmp, spaces, t> {};
+
 struct assign_inst: seq<var, spaces, arrow, spaces, s> {};
 
 struct arith_inst : seq<var, spaces, arrow, spaces, t, spaces, op, spaces, t> {};
-
-struct comp_inst : seq<var, spaces, arrow, spaces, t, spaces, cmp, spaces, t> {};
 
 struct load_inst : seq<var, spaces, arrow, spaces, load, spaces, var> {};
 
@@ -168,9 +168,8 @@ struct call_inst : seq<call, spaces, callee, spaces, argument_list> {};
 struct call_assign_inst : seq<var, spaces, arrow, spaces, call, spaces, callee, spaces, argument_list> {};
 
 struct i : sor<
-              seq<at<arith_inst>, arith_inst>,
               seq<at<comp_inst>, comp_inst>,
-              seq<at<assign_inst>, assign_inst>,
+              seq<at<arith_inst>, arith_inst>,
               seq<at<load_inst>, load_inst>,
               seq<at<store_inst>, store_inst>,
               seq<at<ret_val_inst>, ret_val_inst>,
@@ -180,7 +179,8 @@ struct i : sor<
               seq<at<cond_branch_inst>, cond_branch_inst>,
               seq<at<call_inst>, call_inst>,
               seq<at<call_assign_inst>, call_assign_inst>,
-              seq<at<comment>, comment>
+              seq<at<comment>, comment>,
+              seq<at<assign_inst>, assign_inst>
             > {};
 
 struct instructions : plus<seq<seps, bol, spaces, i, seps>> {};

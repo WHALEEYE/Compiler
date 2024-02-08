@@ -1,3 +1,5 @@
+#include "tile.h"
+#include "tree.h"
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
@@ -63,7 +65,9 @@ int main(int argc, char **argv) {
   if (verbose) {
     cout << "Program before globalizing labels:" << endl;
     cout << P->toStr();
-    L3::globalizeLabels(P);
+  }
+  L3::globalizeLabels(P);
+  if (verbose) {
     cout << "Program after globalizing labels:" << endl;
     cout << P->toStr();
   }
@@ -72,6 +76,9 @@ int main(int argc, char **argv) {
    * Generate the target code.
    */
   if (enableCodeGenerator) {
+    auto &treeResult = L3::constructTrees(P);
+    auto &tilingResult = L3::doTiling(treeResult);
+    L3::generate_code(tilingResult, P);
   }
 
   return 0;

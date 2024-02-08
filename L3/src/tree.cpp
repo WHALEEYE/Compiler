@@ -1,77 +1,76 @@
-#include "tile.h"
 #include <string>
+#include <vector>
 
 #include <L3.h>
+#include <helper.h>
 #include <tree.h>
-#include <vector>
 
 namespace L3 {
 
-void TreeNode::setCodeBlock(L2CodeBlockNode *codeBlock) { this->codeBlock = codeBlock; }
-L2CodeBlockNode *TreeNode::getCodeBlock() const { return codeBlock; }
+void TreeNode::setContext(TreeContext *context) { this->context = context; }
 
-OperandNode::OperandNode(const Item *operand) : operand(operand) {}
+OperandNode::OperandNode(const Item *operand) : operand(operand), child(nullptr) {}
 const Item *OperandNode::getOperand() const { return operand; }
-OperationNode *OperandNode::getChild() { return child; }
+const OperationNode *OperandNode::getChild() const { return child; }
 void OperandNode::setChild(OperationNode *child) { this->child = child; }
 string OperandNode::toStr() const { return operand->toStr(); }
 
-void CallNode::setCallee(OperandNode *callee) { this->callee = callee; }
-OperandNode *CallNode::getCallee() const { return callee; }
-void CallNode::setArgs(OperandNode *args) { this->args = args; }
-OperandNode *CallNode::getArgs() const { return args; }
+void CallNode::setCallee(const OperandNode *callee) { this->callee = callee; }
+const OperandNode *CallNode::getCallee() const { return callee; }
+void CallNode::setArgs(const OperandNode *args) { this->args = args; }
+const OperandNode *CallNode::getArgs() const { return args; }
 string CallNode::toStr() const { return "call"; }
 
 string ReturnNode::toStr() const { return "return"; }
 
-void ReturnValNode::setVal(OperandNode *val) { this->val = val; }
-OperandNode *ReturnValNode::getVal() const { return val; }
-string ReturnValNode::toStr() const { return "return"; }
+void ReturnValNode::setVal(const OperandNode *val) { this->val = val; }
+const OperandNode *ReturnValNode::getVal() const { return val; }
+string ReturnValNode::toStr() const { return "return val"; }
 
-void AssignNode::setRhs(OperandNode *rhs) { this->rhs = rhs; }
-OperandNode *AssignNode::getRhs() const { return rhs; }
+void AssignNode::setRhs(const OperandNode *rhs) { this->rhs = rhs; }
+const OperandNode *AssignNode::getRhs() const { return rhs; }
 string AssignNode::toStr() const { return "<-"; }
 
-void CompareNode::setLhs(OperandNode *lhs) { this->lhs = lhs; }
-OperandNode *CompareNode::getLhs() const { return lhs; }
-void CompareNode::setRhs(OperandNode *rhs) { this->rhs = rhs; }
-OperandNode *CompareNode::getRhs() const { return rhs; }
+void CompareNode::setLhs(const OperandNode *lhs) { this->lhs = lhs; }
+const OperandNode *CompareNode::getLhs() const { return lhs; }
+void CompareNode::setRhs(const OperandNode *rhs) { this->rhs = rhs; }
+const OperandNode *CompareNode::getRhs() const { return rhs; }
 void CompareNode::setOp(const CompareOp *op) { this->op = op; }
 const CompareOp *CompareNode::getOp() const { return op; }
 string CompareNode::toStr() const { return this->op->toStr(); }
 
-void LoadNode::setAddr(OperandNode *addr) { this->addr = addr; }
-OperandNode *LoadNode::getAddr() const { return addr; }
+void LoadNode::setAddr(const OperandNode *addr) { this->addr = addr; }
+const OperandNode *LoadNode::getAddr() const { return addr; }
 string LoadNode::toStr() const { return "load"; }
 
-void StoreNode::setVal(OperandNode *val) { this->val = val; }
-OperandNode *StoreNode::getVal() const { return val; }
+void StoreNode::setVal(const OperandNode *val) { this->val = val; }
+const OperandNode *StoreNode::getVal() const { return val; }
 string StoreNode::toStr() const { return "store"; }
 
-void ArithmeticNode::setLhs(OperandNode *lhs) { this->lhs = lhs; }
-OperandNode *ArithmeticNode::getLhs() const { return lhs; }
-void ArithmeticNode::setRhs(OperandNode *rhs) { this->rhs = rhs; }
-OperandNode *ArithmeticNode::getRhs() const { return rhs; }
+void ArithmeticNode::setLhs(const OperandNode *lhs) { this->lhs = lhs; }
+const OperandNode *ArithmeticNode::getLhs() const { return lhs; }
+void ArithmeticNode::setRhs(const OperandNode *rhs) { this->rhs = rhs; }
+const OperandNode *ArithmeticNode::getRhs() const { return rhs; }
 void ArithmeticNode::setOp(const ArithOp *op) { this->op = op; }
 const ArithOp *ArithmeticNode::getOp() const { return op; }
 string ArithmeticNode::toStr() const { return this->op->toStr(); }
 
-void BranchNode::setLabel(OperandNode *label) { this->label = label; }
-OperandNode *BranchNode::getLabel() const { return label; }
+void BranchNode::setLabel(const OperandNode *label) { this->label = label; }
+const OperandNode *BranchNode::getLabel() const { return label; }
 string BranchNode::toStr() const { return "branch"; }
 
-void CondBranchNode::setCond(OperandNode *cond) { this->cond = cond; }
-OperandNode *CondBranchNode::getCond() const { return cond; }
-void CondBranchNode::setLabel(OperandNode *label) { this->label = label; }
-OperandNode *CondBranchNode::getLabel() const { return label; }
+void CondBranchNode::setCond(const OperandNode *cond) { this->cond = cond; }
+const OperandNode *CondBranchNode::getCond() const { return cond; }
+void CondBranchNode::setLabel(const OperandNode *label) { this->label = label; }
+const OperandNode *CondBranchNode::getLabel() const { return label; }
 string CondBranchNode::toStr() const { return "cbranch"; }
 
 void LabelNode::setLabel(const Label *label) { this->label = label; }
 const Label *LabelNode::getLabel() const { return label; }
 string LabelNode::toStr() const { return label->toStr(); }
 
-void TreeContext::addTree(TreeNode *root) { this->roots.push_back(root); }
-const vector<TreeNode *> &TreeContext::getTrees() const { return roots; }
+void TreeContext::addTreeRoot(TreeNode *root) { this->treeRoots.push_back(root); }
+const vector<const TreeNode *> &TreeContext::getTreeRoots() const { return treeRoots; }
 
 class TreeConstructor : public Visitor {
 public:
@@ -192,30 +191,35 @@ private:
 };
 TreeConstructor *TreeConstructor::instance = nullptr;
 
-TreeNode *constructTree(const Instruction *I) {
+const vector<const TreeNode *> &constructTreesInFunc(const Function *F) {
   auto constructor = TreeConstructor::getInstance();
-  I->accept(*constructor);
-  return constructor->getNode();
-}
-
-const vector<TreeNode *> &constructTrees(Function *F) {
   const Context *last = nullptr, *cxt;
   TreeContext *curr;
-  auto roots = new vector<TreeNode *>();
+  auto &roots = *(new vector<const TreeNode *>());
   for (auto I : F->getInstructions()) {
-    auto root = constructTree(I);
+    debug("constructing tree for " + I->toStr());
+    I->accept(*constructor);
+    auto root = constructor->getNode();
     cxt = I->getContext();
     if (cxt) {
       if (cxt != last)
         curr = new TreeContext();
+
       root->setContext(curr);
-      curr->addTree(root);
+      curr->addTreeRoot(root);
     } else
       root->setContext(nullptr);
 
-    roots->push_back(root);
+    roots.push_back(root);
     last = cxt;
   }
-  return *roots;
+  return roots;
+}
+
+const TreeResult &constructTrees(const Program *P) {
+  auto &result = *(new TreeResult());
+  for (auto F : P->getFunctions())
+    result.insert({F, constructTreesInFunc(F)});
+  return result;
 }
 } // namespace L3
