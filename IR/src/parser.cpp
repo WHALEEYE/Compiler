@@ -85,7 +85,6 @@ struct right_par : one<')'> {};
 
 struct print : TAO_PEGTL_STRING("print") {};
 struct input : TAO_PEGTL_STRING("input") {};
-struct allocate : TAO_PEGTL_STRING("allocate") {};
 struct tuple_error : TAO_PEGTL_STRING("tuple-error") {};
 struct tensor_error : TAO_PEGTL_STRING("tensor-error") {};
 
