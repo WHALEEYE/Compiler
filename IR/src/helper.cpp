@@ -1,7 +1,7 @@
 #include <iostream>
+using namespace std;
 
 #include <helper.h>
-using namespace std;
 
 bool debugEnabled = false;
 

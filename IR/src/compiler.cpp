@@ -6,7 +6,6 @@ using namespace std;
 
 #include <code_generator.h>
 #include <helper.h>
-#include <label_globalizer.h>
 #include <parser.h>
 
 void printHelp(char *progName) {
@@ -57,12 +56,6 @@ int main(int argc, char **argv) {
   L3::Program *P = L3::parseFile(argv[optind]);
 
   if (verbose) {
-    cout << "Program before globalizing labels:" << endl;
-    cout << P->toStr();
-  }
-  L3::globalizeLabels(P);
-  if (verbose) {
-    cout << "Program after globalizing labels:" << endl;
     cout << P->toStr();
   }
 
@@ -70,14 +63,6 @@ int main(int argc, char **argv) {
    * Generate the target code.
    */
   if (enableCodeGenerator) {
-    unordered_map<const L3::Function *, const L3::TilingResult &> programTilingResult;
-    for (auto F : P->getFunctions()) {
-      auto &liveness = L3::analyzeLiveness(F);
-      auto &trees = L3::constructTrees(F, liveness);
-      auto &tilingResult = L3::tileFunction(trees);
-      programTilingResult.insert({F, tilingResult});
-    }
-    L3::generate_code(programTilingResult, P);
   }
 
   return 0;

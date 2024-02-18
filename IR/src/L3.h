@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -7,9 +8,8 @@
 
 namespace L3 {
 
-class Program;
-
 class Visitor;
+class Value;
 
 class Item {
 public:
@@ -17,52 +17,141 @@ public:
   virtual void accept(Visitor &visitor) const;
 };
 
-class Value : public Item {};
+class Type : public Item {};
 
-class Variable : public Value {
+class Int64Type : public Type {
 public:
-  std::string getName() const;
-  explicit Variable(std::string name);
+  std::string toStr() const override;
+  void accept(Visitor &visitor) const override;
+
+  Int64Type(const Int64Type &) = delete;
+  Int64Type &operator=(const Int64Type &) = delete;
+  static Int64Type *getInstance();
+
+private:
+  Int64Type() = default;
+  static Int64Type *instance;
+};
+
+class ArrayType : public Type {
+public:
+  void increaseDim();
+  int64_t getDim() const;
+  void setSizes(const std::vector<const Value *> &sizes);
+  const std::vector<const Value *> &getSizes() const;
+
   std::string toStr() const override;
   void accept(Visitor &visitor) const override;
 
 private:
-  std::string name;
+  int64_t dim;
+  std::vector<const Value *> sizes;
+};
+
+class TupleType : public Type {
+public:
+  void setSize(const Value *size);
+  const Value *getSize() const;
+
+  std::string toStr() const override;
+  void accept(Visitor &visitor) const override;
+
+private:
+  const Value *size;
+};
+
+class CodeType : public Type {
+public:
+  std::string toStr() const override;
+  void accept(Visitor &visitor) const override;
+
+  CodeType(const CodeType &) = delete;
+  CodeType &operator=(const CodeType &) = delete;
+
+  static CodeType *getInstance();
+
+private:
+  CodeType() = default;
+  static CodeType *instance;
+};
+
+class VoidType : public Type {
+public:
+  std::string toStr() const override;
+  void accept(Visitor &visitor) const override;
+
+  VoidType(const VoidType &) = delete;
+  VoidType &operator=(const VoidType &) = delete;
+  static VoidType *getInstance();
+
+private:
+  VoidType() = default;
+  static VoidType *instance;
+};
+
+class Value : public Item {};
+
+class Variable : public Value {
+public:
+  Variable(const std::string &name, const Type *type);
+  const std::string &getName() const;
+  const Type *getType() const;
+  std::string toStr() const override;
+  void accept(Visitor &visitor) const override;
+
+private:
+  const Type *type{};
+  const std::string name;
 };
 
 class Number : public Value {
 public:
   explicit Number(int64_t val);
-  int64_t getVal() const;
+  int64_t getValue() const;
   std::string toStr() const override;
   void accept(Visitor &visitor) const override;
 
 private:
-  int64_t val;
+  int64_t value;
+};
+
+class MemoryLocation : public Value {
+public:
+  MemoryLocation(const Variable *base);
+  const Variable *getBase() const;
+  void addIndex(const Value *index);
+  const std::vector<const Value *> &getIndices() const;
+
+  std::string toStr() const override;
+  void accept(Visitor &visitor) const override;
+
+private:
+  const Variable *base;
+  std::vector<const Value *> indices;
 };
 
 class LeftParen : public Item {
 public:
-  static const LeftParen *getInstance();
+  static LeftParen *getInstance();
 
 private:
   LeftParen() = default;
-  static const LeftParen *instance;
+  static LeftParen *instance;
 };
 
 class RightParen : public Item {
 public:
-  static const RightParen *getInstance();
+  static RightParen *getInstance();
 
 private:
   RightParen() = default;
-  static const RightParen *instance;
+  static RightParen *instance;
 };
 
 class Arguments : public Item {
 public:
-  Arguments() = default;
   void addArgToHead(const Value *arg);
+  void addArgToTail(const Value *arg);
   const std::vector<const Value *> &getArgs() const;
   std::string toStr() const override;
   void accept(Visitor &visitor) const override;
@@ -161,22 +250,26 @@ private:
 /*
  * Instruction interface.
  */
-class Context;
-
 class Instruction {
 public:
   virtual std::string toStr() const = 0;
   virtual void accept(Visitor &visitor) const = 0;
-  void setContext(const Context *context);
-  const Context *getContext() const;
-
-private:
-  const Context *cxt{};
 };
 
 /*
  * Instructions.
  */
+class DeclarationInst : public Instruction {
+public:
+  DeclarationInst(const Variable *var);
+  const Variable *getVar() const;
+  std::string toStr() const override;
+  void accept(Visitor &visitor) const override;
+
+private:
+  const Variable *var;
+};
+
 class AssignInst : public Instruction {
 public:
   AssignInst(const Variable *lval, const Item *rval);
@@ -226,28 +319,83 @@ private:
 
 class LoadInst : public Instruction {
 public:
-  LoadInst(const Variable *lval, const Variable *addr);
-  const Variable *getVal() const;
-  const Variable *getAddr() const;
+  LoadInst(const Variable *target, const MemoryLocation *memLoc);
+  const Variable *getTarget() const;
+  const MemoryLocation *getMemLoc() const;
+
   std::string toStr() const override;
   void accept(Visitor &visitor) const override;
 
 private:
-  const Variable *val;
-  const Variable *addr;
+  const Variable *target;
+  const MemoryLocation *memLoc;
 };
 
 class StoreInst : public Instruction {
 public:
-  StoreInst(const Variable *addr, const Value *rval);
-  const Variable *getAddr() const;
-  const Value *getVal() const;
+  StoreInst(const MemoryLocation *memLoc, const Value *source);
+  const MemoryLocation *getMemLoc() const;
+  const Value *getSource() const;
+
   std::string toStr() const override;
   void accept(Visitor &visitor) const override;
 
 private:
-  const Variable *addr;
-  const Value *val;
+  const MemoryLocation *memLoc;
+  const Value *source;
+};
+
+class ArrayLenInst : public Instruction {
+public:
+  ArrayLenInst(const Variable *result, const Variable *base, const Value *dimIndex);
+  const Variable *getResult() const;
+  const Variable *getBase() const;
+  const Value *getDimIndex() const;
+
+  std::string toStr() const override;
+  void accept(Visitor &visitor) const override;
+
+private:
+  const Variable *result;
+  const Variable *base;
+  const Value *dimIndex;
+};
+
+class TupleLenInst : public Instruction {
+public:
+  TupleLenInst(const Variable *result, const Variable *base);
+  const Variable *getResult() const;
+  const Variable *getBase() const;
+
+  std::string toStr() const override;
+  void accept(Visitor &visitor) const override;
+
+private:
+  const Variable *result;
+  const Variable *base;
+};
+
+class NewArrayInst : public Instruction {
+public:
+  NewArrayInst(const Variable *array);
+  const Variable *getArray() const;
+
+  std::string toStr() const override;
+  void accept(Visitor &visitor) const override;
+
+private:
+  const Variable *array;
+};
+
+class NewTupleInst : public Instruction {
+public:
+  NewTupleInst(const Variable *tuple);
+  const Variable *getTuple() const;
+  std::string toStr() const override;
+  void accept(Visitor &visitor) const override;
+
+private:
+  const Variable *tuple;
 };
 
 class RetInst : public Instruction {
@@ -291,15 +439,16 @@ private:
 
 class CondBranchInst : public Instruction {
 public:
-  CondBranchInst(const Value *condition, const Label *label);
+  CondBranchInst(const Value *condition, const Label *trueLabel, const Label *falseLabel);
   const Value *getCondition() const;
-  const Label *getLabel() const;
+  const Label *getTrueLabel() const;
+  const Label *getFalseLabel() const;
   std::string toStr() const override;
   void accept(Visitor &visitor) const override;
 
 private:
   const Value *condition;
-  const Label *label;
+  const Label *trueLabel, *falseLabel;
 };
 
 class CallInst : public Instruction {
@@ -354,53 +503,54 @@ private:
   std::unordered_set<BasicBlock *> successors;
 };
 
-class Context {
-public:
-  const std::vector<const Instruction *> &getInstructions() const;
-  void addInstruction(const Instruction *inst);
-
-private:
-  std::vector<const Instruction *> instructions;
-};
-
 class Function {
 public:
-  explicit Function(std::string name);
+  explicit Function();
+
   std::string getName() const;
+  void setName(const std::string &name);
+
+  const Type *getReturnType() const;
+  void setReturnType(const Type *type);
+
   const Parameters *getParams() const;
   void setParams(const Parameters *parameters);
-  const Variable *getVariable(const std::string &name);
-  bool hasVariable(const std::string &name) const;
-  const std::unordered_map<std::string, const Variable *> &getVariables() const;
+
+  void defineVariable(const std::string &name, const Type *type);
+  Variable *getVariable(const std::string &name);
+  Label *getLabel(const std::string &name);
   const std::unordered_map<std::string, Label *> &getLabels() const;
+
   void addInstruction(Instruction *inst);
-  const Label *getLabel(const std::string &name);
+
   void newBasicBlock();
-  void newLinkedBasicBlock();
   const std::vector<BasicBlock *> &getBasicBlocks() const;
+
   std::string toStr() const;
 
 private:
   std::string name;
+  const Type *returnType{};
   const Parameters *params{};
   std::vector<BasicBlock *> basicBlocks;
-  std::unordered_map<std::string, const Variable *> variables;
+  std::unordered_map<std::string, Variable *> variables;
+  // the name of a label may need to be changed later
   std::unordered_map<std::string, Label *> labels;
 };
 
 class Program {
 public:
-  Program();
+  Program() = default;
   const std::vector<Function *> &getFunctions() const;
   void addFunction(Function *F);
   Function *getCurrFunction() const;
   void addInstruction(Instruction *inst);
-  void newContext();
-  void closeContext();
-  const Variable *getVariable(const std::string &name) const;
-  const Label *getLabel(const std::string &name) const;
+
+  void defineVariable(const std::string &name, const Type *type);
+  Variable *getVariable(const std::string &name) const;
+  Label *getLabel(const std::string &name) const;
+
   void newBasicBlock() const;
-  void newLinkedBasicBlock() const;
   std::string toStr() const;
 
   Program(const Program &) = delete;
@@ -408,13 +558,18 @@ public:
 
 private:
   std::vector<Function *> functions;
-  Context *currContext;
 };
 
 class Visitor {
 public:
   virtual void visit(const Variable *var) = 0;
   virtual void visit(const Number *num) = 0;
+  virtual void visit(const MemoryLocation *mem) = 0;
+  virtual void visit(const Int64Type *type) = 0;
+  virtual void visit(const ArrayType *type) = 0;
+  virtual void visit(const TupleType *type) = 0;
+  virtual void visit(const CodeType *type) = 0;
+  virtual void visit(const VoidType *type) = 0;
   virtual void visit(const Arguments *args) = 0;
   virtual void visit(const Parameters *params) = 0;
   virtual void visit(const CompareOp *op) = 0;
@@ -422,11 +577,16 @@ public:
   virtual void visit(const RuntimeFunction *func) = 0;
   virtual void visit(const FunctionName *name) = 0;
   virtual void visit(const Label *label) = 0;
+  virtual void visit(const DeclarationInst *inst) = 0;
   virtual void visit(const AssignInst *inst) = 0;
   virtual void visit(const ArithInst *inst) = 0;
   virtual void visit(const CompareInst *inst) = 0;
   virtual void visit(const LoadInst *inst) = 0;
   virtual void visit(const StoreInst *inst) = 0;
+  virtual void visit(const ArrayLenInst *inst) = 0;
+  virtual void visit(const TupleLenInst *inst) = 0;
+  virtual void visit(const NewArrayInst *inst) = 0;
+  virtual void visit(const NewTupleInst *inst) = 0;
   virtual void visit(const RetInst *inst) = 0;
   virtual void visit(const RetValueInst *inst) = 0;
   virtual void visit(const LabelInst *inst) = 0;

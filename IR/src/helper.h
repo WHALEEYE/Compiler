@@ -1,7 +1,8 @@
 #pragma once
-#include <L3.h>
 #include <string>
+
+#include <L3.h>
 
 extern bool debugEnabled;
 
-void debug(const std::string& message);
+void debug(const std::string &message);

@@ -1,4 +1,5 @@
 #include <stdexcept>
+#include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -11,23 +12,69 @@ namespace L3 {
 std::string Item::toStr() const { throw runtime_error("Item::toStr() not implemented"); }
 void Item::accept(Visitor &visitor) const { throw runtime_error("Item::accept() not implemented"); }
 
-Variable::Variable(string name) : name(std::move(name)) {}
+Variable::Variable(const string &name, const Type *type) : name(name), type(type) {}
+const string &Variable::getName() const { return name; }
+const Type *Variable::getType() const { return type; }
 string Variable::toStr() const { return name; }
 void Variable::accept(Visitor &visitor) const { visitor.visit(this); }
-std::string Variable::getName() const { return name; }
 
-Number::Number(int64_t val) : val(val) {}
-int64_t Number::getVal() const { return val; }
-string Number::toStr() const { return to_string(val); }
+Number::Number(int64_t val) : value(val) {}
+int64_t Number::getValue() const { return value; }
+string Number::toStr() const { return to_string(value); }
 void Number::accept(Visitor &visitor) const { visitor.visit(this); }
 
-const LeftParen *LeftParen::instance = new LeftParen();
-const LeftParen *LeftParen::getInstance() { return instance; }
+MemoryLocation::MemoryLocation(const Variable *base) : base(base) {}
+const Variable *MemoryLocation::getBase() const { return base; }
+void MemoryLocation::addIndex(const Value *index) { indices.push_back(index); }
+const vector<const Value *> &MemoryLocation::getIndices() const { return indices; }
+string MemoryLocation::toStr() const {
+  string str = base->toStr();
+  for (auto index : indices)
+    str += "[" + index->toStr() + "]";
+  return str;
+}
+void MemoryLocation::accept(Visitor &visitor) const { visitor.visit(this); }
 
-const RightParen *RightParen::instance = new RightParen();
-const RightParen *RightParen::getInstance() { return instance; }
+Int64Type *Int64Type::instance = new Int64Type();
+Int64Type *Int64Type::getInstance() { return instance; }
+string Int64Type::toStr() const { return "int64"; }
+void Int64Type::accept(Visitor &visitor) const { visitor.visit(this); }
+
+void ArrayType::increaseDim() { dim++; }
+int64_t ArrayType::getDim() const { return dim; }
+void ArrayType::setSizes(const vector<const Value *> &sizes) { this->sizes = sizes; }
+const vector<const Value *> &ArrayType::getSizes() const { return sizes; }
+string ArrayType::toStr() const {
+  string str = "int64";
+  for (auto i = 0; i < dim; i++)
+    str += "[]";
+  return str;
+}
+void ArrayType::accept(Visitor &visitor) const { visitor.visit(this); }
+
+void TupleType::setSize(const Value *size) { this->size = size; }
+const Value *TupleType::getSize() const { return size; }
+string TupleType::toStr() const { return "tuple"; }
+void TupleType::accept(Visitor &visitor) const { visitor.visit(this); }
+
+CodeType *CodeType::instance = new CodeType();
+CodeType *CodeType::getInstance() { return instance; }
+string CodeType::toStr() const { return "code"; }
+void CodeType::accept(Visitor &visitor) const { visitor.visit(this); }
+
+VoidType *VoidType::instance = new VoidType();
+VoidType *VoidType::getInstance() { return instance; }
+string VoidType::toStr() const { return "void"; }
+void VoidType::accept(Visitor &visitor) const { visitor.visit(this); }
+
+LeftParen *LeftParen::instance = new LeftParen();
+LeftParen *LeftParen::getInstance() { return instance; }
+
+RightParen *RightParen::instance = new RightParen();
+RightParen *RightParen::getInstance() { return instance; }
 
 void Arguments::addArgToHead(const Value *arg) { args.insert(args.begin(), arg); }
+void Arguments::addArgToTail(const Value *arg) { args.push_back(arg); }
 const vector<const Value *> &Arguments::getArgs() const { return args; }
 string Arguments::toStr() const {
   string str;
@@ -45,7 +92,7 @@ string Parameters::toStr() const {
   string str;
 
   for (auto param : params)
-    str += param->toStr() + ", ";
+    str += param->getType()->toStr() + " " + param->toStr() + ", ";
 
   return str.empty() ? str : str.substr(0, str.size() - 2);
 }
@@ -64,7 +111,7 @@ const unordered_map<CompareOp::ID, CompareOp *> CompareOp::enumMap = {
     {ID::GREATER_EQUAL, new CompareOp(ID::GREATER_EQUAL, ">=")},
     {ID::GREATER_THAN, new CompareOp(ID::GREATER_THAN, ">")}};
 
-ArithOp::ArithOp(ID id, string name) : id(id), name{std::move(name)} {}
+ArithOp::ArithOp(ID id, string name) : id(id), name(std::move(name)) {}
 ArithOp *ArithOp::getArithOp(ID id) { return enumMap.at(id); }
 string ArithOp::getName() const { return name; }
 ArithOp::ID ArithOp::getID() const { return id; }
@@ -74,7 +121,7 @@ const unordered_map<ArithOp::ID, ArithOp *> ArithOp::enumMap = {
     {ID::ADD, new ArithOp(ID::ADD, "+")}, {ID::SUB, new ArithOp(ID::SUB, "-")}, {ID::MUL, new ArithOp(ID::MUL, "*")},
     {ID::AND, new ArithOp(ID::AND, "&")}, {ID::LS, new ArithOp(ID::LS, "<<")},  {ID::RS, new ArithOp(ID::RS, ">>")}};
 
-RuntimeFunction::RuntimeFunction(string name) : name{std::move(name)} {}
+RuntimeFunction::RuntimeFunction(string name) : name(std::move(name)) {}
 RuntimeFunction *RuntimeFunction::getRuntimeFunction(ID id) { return enumMap.at(id); }
 string RuntimeFunction::getName() const { return name; }
 string RuntimeFunction::toStr() const { return name; }
@@ -99,10 +146,12 @@ void Label::accept(Visitor &visitor) const { visitor.visit(this); }
 /*
  *  Instructions.
  */
-void Instruction::setContext(const Context *context) { this->cxt = context; }
-const Context *Instruction::getContext() const { return cxt; }
+DeclarationInst::DeclarationInst(const Variable *var) : var(var) {}
+const Variable *DeclarationInst::getVar() const { return var; }
+string DeclarationInst::toStr() const { return var->getType()->toStr() + " " + var->toStr(); }
+void DeclarationInst::accept(Visitor &visitor) const { visitor.visit(this); }
 
-AssignInst::AssignInst(const Variable *lhs, const Item *rhs) : lhs{lhs}, rhs{rhs} {}
+AssignInst::AssignInst(const Variable *lhs, const Item *rhs) : lhs(lhs), rhs(rhs) {}
 const Variable *AssignInst::getLhs() const { return lhs; }
 const Item *AssignInst::getRhs() const { return rhs; }
 string AssignInst::toStr() const { return lhs->toStr() + " <- " + rhs->toStr(); }
@@ -130,17 +179,64 @@ string CompareInst::toStr() const {
 }
 void CompareInst::accept(Visitor &visitor) const { visitor.visit(this); }
 
-LoadInst::LoadInst(const Variable *val, const Variable *addr) : val{val}, addr{addr} {}
-const Variable *LoadInst::getVal() const { return val; }
-const Variable *LoadInst::getAddr() const { return addr; }
-string LoadInst::toStr() const { return val->toStr() + " <- load " + addr->toStr(); }
+LoadInst::LoadInst(const Variable *target, const MemoryLocation *memLoc) : target(target), memLoc(memLoc) {}
+const Variable *LoadInst::getTarget() const { return target; }
+const MemoryLocation *LoadInst::getMemLoc() const { return memLoc; }
+string LoadInst::toStr() const {
+  string str = target->toStr() + " <- ";
+  str += memLoc->getBase()->toStr();
+  for (auto index : memLoc->getIndices())
+    str += "[" + index->toStr() + "]";
+  return str;
+}
 void LoadInst::accept(Visitor &visitor) const { visitor.visit(this); }
 
-StoreInst::StoreInst(const Variable *addr, const Value *val) : addr{addr}, val{val} {}
-const Variable *StoreInst::getAddr() const { return addr; }
-const Value *StoreInst::getVal() const { return val; }
-string StoreInst::toStr() const { return "store " + addr->toStr() + " <- " + val->toStr(); }
+StoreInst::StoreInst(const MemoryLocation *memLoc, const Value *source) : memLoc(memLoc), source(source) {}
+const MemoryLocation *StoreInst::getMemLoc() const { return memLoc; }
+const Value *StoreInst::getSource() const { return source; }
+string StoreInst::toStr() const {
+  string str = memLoc->getBase()->toStr();
+  for (auto index : memLoc->getIndices())
+    str += "[" + index->toStr() + "]";
+  str += " <- " + source->toStr();
+  return str;
+}
 void StoreInst::accept(Visitor &visitor) const { visitor.visit(this); }
+
+ArrayLenInst::ArrayLenInst(const Variable *result, const Variable *base, const Value *dimIndex)
+    : result{result}, base{base}, dimIndex{dimIndex} {}
+const Variable *ArrayLenInst::getResult() const { return result; }
+const Variable *ArrayLenInst::getBase() const { return base; }
+const Value *ArrayLenInst::getDimIndex() const { return dimIndex; }
+string ArrayLenInst::toStr() const { return result->toStr() + " <- length " + base->toStr() + " " + dimIndex->toStr(); }
+void ArrayLenInst::accept(Visitor &visitor) const { visitor.visit(this); }
+
+TupleLenInst::TupleLenInst(const Variable *result, const Variable *base) : result{result}, base{base} {}
+const Variable *TupleLenInst::getResult() const { return result; }
+const Variable *TupleLenInst::getBase() const { return base; }
+string TupleLenInst::toStr() const { return result->toStr() + " <- length " + base->toStr(); }
+void TupleLenInst::accept(Visitor &visitor) const { visitor.visit(this); }
+
+NewArrayInst::NewArrayInst(const Variable *array) : array{array} {}
+const Variable *NewArrayInst::getArray() const { return array; }
+string NewArrayInst::toStr() const {
+  string str = array->toStr() + " <- new Array(";
+  auto sizes = ((ArrayType *)array->getType())->getSizes();
+  for (auto size : sizes)
+    str += size->toStr() + ", ";
+  return str.substr(0, str.size() - 2) + ")";
+}
+void NewArrayInst::accept(Visitor &visitor) const { visitor.visit(this); }
+
+NewTupleInst::NewTupleInst(const Variable *tuple) : tuple{tuple} {}
+const Variable *NewTupleInst::getTuple() const { return tuple; }
+string NewTupleInst::toStr() const {
+  string str = tuple->toStr() + " <- new Tuple(";
+  auto size = ((TupleType *)tuple->getType())->getSize();
+  str += size->toStr();
+  return str + ")";
+}
+void NewTupleInst::accept(Visitor &visitor) const { visitor.visit(this); }
 
 string RetInst::toStr() const { return "return"; }
 void RetInst::accept(Visitor &visitor) const { visitor.visit(this); }
@@ -160,10 +256,14 @@ const Label *BranchInst::getLabel() const { return label; }
 string BranchInst::toStr() const { return "br " + label->toStr(); }
 void BranchInst::accept(Visitor &visitor) const { visitor.visit(this); }
 
-CondBranchInst::CondBranchInst(const Value *condition, const Label *label) : condition{condition}, label{label} {}
+CondBranchInst::CondBranchInst(const Value *condition, const Label *trueLabel, const Label *falseLabel)
+    : condition{condition}, trueLabel{trueLabel}, falseLabel{falseLabel} {}
 const Value *CondBranchInst::getCondition() const { return condition; }
-const Label *CondBranchInst::getLabel() const { return label; }
-string CondBranchInst::toStr() const { return "br " + condition->toStr() + " " + label->toStr(); }
+const Label *CondBranchInst::getTrueLabel() const { return trueLabel; }
+const Label *CondBranchInst::getFalseLabel() const { return falseLabel; }
+string CondBranchInst::toStr() const {
+  return "br " + condition->toStr() + " " + trueLabel->toStr() + " " + falseLabel->toStr();
+}
 void CondBranchInst::accept(Visitor &visitor) const { visitor.visit(this); }
 
 CallInst::CallInst(const Item *callee, const Arguments *args) : callee{callee}, args{args} {}
@@ -196,25 +296,30 @@ bool BasicBlock::empty() const { return instructions.empty(); }
 string BasicBlock::toStr() const {
   string str;
   for (auto inst : instructions)
-    str += inst->toStr() + "\n";
+    str += "  " + inst->toStr() + "\n";
   return str;
 }
 
-const vector<const Instruction *> &Context::getInstructions() const { return instructions; }
-void Context::addInstruction(const Instruction *inst) { instructions.push_back(inst); }
-
-Function::Function(string name) : name{std::move(name)} { this->basicBlocks.push_back(new BasicBlock()); }
+Function::Function() { this->basicBlocks.push_back(new BasicBlock()); }
 string Function::getName() const { return name; }
+void Function::setName(const string &name) { this->name = name; }
+const Type *Function::getReturnType() const { return returnType; }
+void Function::setReturnType(const Type *type) { this->returnType = type; }
 const Parameters *Function::getParams() const { return params; }
 void Function::setParams(const Parameters *parameters) { this->params = parameters; }
-const Variable *Function::getVariable(const string &name) {
+void Function::defineVariable(const string &name, const Type *type) {
+  if (variables.find(name) != variables.end())
+    throw runtime_error("Variable " + name + " already defined");
+  variables[name] = new Variable(name, type);
+}
+Variable *Function::getVariable(const string &name) {
   if (variables.find(name) == variables.end())
-    variables[name] = new Variable(name);
+    throw runtime_error("Variable " + name + " not found");
   return variables[name];
 }
 const unordered_map<string, Label *> &Function::getLabels() const { return labels; }
 void Function::addInstruction(Instruction *inst) { basicBlocks.back()->addInstruction(inst); }
-const Label *Function::getLabel(const string &name) {
+Label *Function::getLabel(const string &name) {
   if (labels.find(name) == labels.end())
     labels[name] = new Label(name);
   return labels[name];
@@ -224,40 +329,24 @@ void Function::newBasicBlock() {
     return;
   basicBlocks.push_back(new BasicBlock());
 }
-void Function::newLinkedBasicBlock() {
-  if (basicBlocks.back()->empty())
-    throw runtime_error("cannot link an empty basic block");
-  auto newBB = new BasicBlock();
-  basicBlocks.back()->addSuccessor(newBB);
-  newBB->addPredecessor(basicBlocks.back());
-  basicBlocks.push_back(newBB);
-}
 const vector<BasicBlock *> &Function::getBasicBlocks() const { return basicBlocks; }
 string Function::toStr() const {
   string str;
-  str += "define " + name + "(" + params->toStr() + ") {\n";
+  str += "define " + returnType->toStr() + " " + name + "(" + params->toStr() + ") {\n";
   for (auto BB : basicBlocks)
-    str += "  " + BB->toStr() + "\n";
+    str += BB->toStr() + "\n";
   str += "}\n";
   return str;
 }
 
-Program::Program() { this->currContext = new Context(); }
 const vector<Function *> &Program::getFunctions() const { return functions; }
 void Program::addFunction(Function *F) { functions.push_back(F); }
 Function *Program::getCurrFunction() const { return functions.back(); }
-void Program::addInstruction(Instruction *inst) {
-  inst->setContext(currContext);
-  if (currContext)
-    currContext->addInstruction(inst);
-  getCurrFunction()->addInstruction(inst);
-}
-void Program::newContext() { this->currContext = new Context(); }
-void Program::closeContext() { this->currContext = nullptr; }
-const Variable *Program::getVariable(const string &name) const { return getCurrFunction()->getVariable(name); }
-const Label *Program::getLabel(const string &name) const { return getCurrFunction()->getLabel(name); }
+void Program::addInstruction(Instruction *inst) { getCurrFunction()->addInstruction(inst); }
+void Program::defineVariable(const string &name, const Type *type) { getCurrFunction()->defineVariable(name, type); }
+Variable *Program::getVariable(const string &name) const { return getCurrFunction()->getVariable(name); }
+Label *Program::getLabel(const string &name) const { return getCurrFunction()->getLabel(name); }
 void Program::newBasicBlock() const { getCurrFunction()->newBasicBlock(); }
-void Program::newLinkedBasicBlock() const { getCurrFunction()->newLinkedBasicBlock(); }
 string Program::toStr() const {
   string str;
   for (auto F : functions)
