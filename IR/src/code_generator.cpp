@@ -1,3 +1,4 @@
+#include <cstddef>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -12,7 +13,7 @@ namespace IR {
 class GlobalVarNameGenerator {
 public:
   GlobalVarNameGenerator(const Function *F) : counter(0) {
-    string longestName = "var";
+    string longestName = "%var";
     for (auto &[varname, _] : F->getVariables()) {
       if (varname.size() > longestName.size())
         longestName = varname;
@@ -45,7 +46,7 @@ public:
   vector<string> generateDecodeInstructions(string result, const Value *decoded) {
     vector<string> insts;
     if (auto var = dynamic_cast<const Variable *>(decoded)) {
-      insts.push_back(result + " <- " + result + " >> 1");
+      insts.push_back(result + " <- " + var->toStr() + " >> 1");
     } else if (auto num = dynamic_cast<const Number *>(decoded)) {
       auto val = num->getValue();
       val = val - 1;
@@ -159,7 +160,7 @@ public:
     auto addr = varNameGen->next();
     auto addrInsts = getL3Address(inst->getMemLoc(), addr);
     instBuffer.insert(instBuffer.end(), addrInsts.begin(), addrInsts.end());
-    instBuffer.push_back("store " + addr + " " + inst->getSource()->toStr());
+    instBuffer.push_back("store " + addr + " <- " + inst->getSource()->toStr());
   }
 
   void visit(const ArrayLenInst *inst) {
@@ -237,16 +238,9 @@ public:
   void visit(const BranchInst *inst) { instBuffer.push_back("br " + inst->getLabel()->toStr()); }
 
   void visit(const CondBranchInst *inst) {
-    if (inst->getFalseLabel() && inst->getTrueLabel()) {
-      instBuffer.push_back("br " + inst->getCondition()->toStr() + " " + inst->getTrueLabel()->toStr());
+    instBuffer.push_back("br " + inst->getCondition()->toStr() + " " + inst->getTrueLabel()->toStr());
+    if (inst->getFalseLabel() != nullptr) 
       instBuffer.push_back("br " + inst->getFalseLabel()->toStr());
-    } else if (inst->getFalseLabel()) {
-      string name = varNameGen->next();
-      instBuffer.push_back(name + " <- 1 - " + inst->getCondition()->toStr());
-      instBuffer.push_back("br " + name + " " + inst->getFalseLabel()->toStr());
-    } else if (inst->getTrueLabel()) {
-      instBuffer.push_back("br " + inst->getCondition()->toStr() + " " + inst->getTrueLabel()->toStr());
-    }
   }
 
   void visit(const CallInst *inst) {
@@ -297,7 +291,13 @@ void generate_code(Program *P) {
     L3CodeGenerator codeGen(F);
     auto paramSize = (int)F->getParams()->getParams().size();
     auto &paramList = F->getParams()->getParams();
-    outputFile << "define " << F->getName() << "(" << F->getParams()->toStr() << ") {" << endl;
+    string paramStr = "";
+    for (int i = 0; i < paramSize; i++) {
+      paramStr += paramList[i]->toStr();
+      if (i != paramSize - 1)
+        paramStr += ", ";
+    }
+    outputFile << "define " << F->getName() << "(" << paramStr << ") {" << endl;
 
     for (auto BB : F->getBasicBlocks())
       for (auto I : BB->getInstructions())
@@ -306,7 +306,7 @@ void generate_code(Program *P) {
     for (auto inst : codeGen.getInstructions())
       outputFile << "  " << inst << endl;
 
-    outputFile << "}" << endl;
+    outputFile << "}\n" << endl;
   }
 }
 } // namespace IR
