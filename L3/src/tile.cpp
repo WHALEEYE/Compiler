@@ -6,14 +6,12 @@
 #include <code_generator.h>
 #include <helper.h>
 #include <string>
-#include <tile.h>
-#include <tree.h>
 
 namespace L3 {
 
 string CodeBlock::toStr() const {
   string ret;
-  for (auto inst : instructions)
+  for (const auto &inst : instructions)
     ret += inst + "\n";
   return ret;
 }
@@ -36,7 +34,7 @@ vector<string> assembleCodeRec(const CodeBlock *block) {
   return code;
 }
 
-const vector<string> &FunctionTilingResult::assembleCode() const {
+const vector<string> &TilingResult::assembleCode() const {
   auto &code = *(new vector<string>);
   for (auto root : roots) {
     auto rootCode = assembleCodeRec(root);
@@ -47,13 +45,11 @@ const vector<string> &FunctionTilingResult::assembleCode() const {
 
 const unordered_set<const Tile *> &Tile::getTiles() { return tiles; }
 const unordered_set<const Tile *> Tile::tiles = {
-    ArithTile::getInstance(),      CompareTile::getInstance(),    StoreTile::getInstance(),
-    LoadTile::getInstance(),       AssignTile::getInstance(),     BranchTile::getInstance(),
-    CondBranchTile::getInstance(), ReturnTile::getInstance(),     ReturnValTile::getInstance(),
-    CallTile::getInstance(),       CallAssignTile::getInstance(), LabelTile::getInstance()};
+    ArithTile::getInstance(),     CompareTile::getInstance(), StoreTile::getInstance(),      LoadTile::getInstance(),
+    AssignTile::getInstance(),    BranchTile::getInstance(),  CondBranchTile::getInstance(), ReturnTile::getInstance(),
+    ReturnValTile::getInstance(), CallTile::getInstance(),    CallAssignTile::getInstance(), LabelTile::getInstance()};
 
-void addBlock(const TreeNode *root, const vector<const TreeNode *> &leaves, CodeBlock *newBlock,
-              FunctionTilingResult &result) {
+void addBlock(const TreeNode *root, const vector<const TreeNode *> &leaves, CodeBlock *newBlock, TilingResult &result) {
   // get the block of the root node
   CodeBlock *prtBlock = nullptr;
   if (result.nodeToBlock.find(root) != result.nodeToBlock.end())
@@ -81,14 +77,13 @@ int ArithTile::match(const TreeNode *node) const {
 
   return 3;
 }
-vector<const TreeNode *> ArithTile::apply(const TreeNode *node,
-                                          FunctionTilingResult &result) const {
+vector<const TreeNode *> ArithTile::apply(const TreeNode *node, TilingResult &result) const {
   auto rst = dynamic_cast<const OperandNode *>(node);
   auto op = dynamic_cast<const ArithmeticNode *>(rst->getChild());
   auto lhs = op->getLhs(), rhs = op->getRhs();
   vector<const TreeNode *> leaves = {lhs, rhs};
 
-  CodeBlock *block = new CodeBlock();
+  auto *block = new CodeBlock();
   auto insts = generateArithmetic(rst, lhs, op, rhs);
   block->addInstructions(insts);
   addBlock(node, leaves, block, result);
@@ -112,8 +107,7 @@ int CompareTile::match(const TreeNode *node) const {
 
   return 3;
 }
-vector<const TreeNode *> CompareTile::apply(const TreeNode *node,
-                                            FunctionTilingResult &result) const {
+vector<const TreeNode *> CompareTile::apply(const TreeNode *node, TilingResult &result) const {
   auto rst = dynamic_cast<const OperandNode *>(node);
   auto op = dynamic_cast<const CompareNode *>(rst->getChild());
   auto lhs = op->getLhs(), rhs = op->getRhs();
@@ -141,7 +135,7 @@ vector<const TreeNode *> CompareTile::apply(const TreeNode *node,
     throw runtime_error("Invalid compare op");
   }
 
-  CodeBlock *block = new CodeBlock();
+  auto *block = new CodeBlock();
   auto insts = generateCompare(rst_str, lhs_str, op_str, rhs_str);
   block->addInstructions(insts);
   addBlock(node, leaves, block, result);
@@ -155,23 +149,17 @@ const CompareTile *CompareTile::getInstance() {
 const CompareTile *CompareTile::instance = nullptr;
 
 int StoreTile::match(const TreeNode *node) const {
-  if (!dynamic_cast<const OperandNode *>(node))
-    return 0;
-  auto addr = dynamic_cast<const OperandNode *>(node);
-  if (!dynamic_cast<const Variable *>(addr->getOperand()) || !addr->getChild())
-    return 0;
-  if (!dynamic_cast<const StoreNode *>(addr->getChild()))
+  if (!dynamic_cast<const StoreNode *>(node))
     return 0;
   return 2;
 }
-vector<const TreeNode *> StoreTile::apply(const TreeNode *node,
-                                          FunctionTilingResult &result) const {
-  auto addr = dynamic_cast<const OperandNode *>(node);
-  auto op = dynamic_cast<const StoreNode *>(addr->getChild());
-  auto val = op->getVal();
+vector<const TreeNode *> StoreTile::apply(const TreeNode *node, TilingResult &result) const {
+  auto storeNode = dynamic_cast<const StoreNode *>(node);
+  auto addr = storeNode->getAddr();
+  auto val = storeNode->getVal();
   vector<const TreeNode *> leaves = {val};
 
-  CodeBlock *block = new CodeBlock();
+  auto *block = new CodeBlock();
   auto insts = generateStore(addr->toStr(), val->toStr());
   block->addInstructions(insts);
   addBlock(node, leaves, block, result);
@@ -194,13 +182,13 @@ int LoadTile::match(const TreeNode *node) const {
     return 0;
   return 2;
 }
-vector<const TreeNode *> LoadTile::apply(const TreeNode *node, FunctionTilingResult &result) const {
+vector<const TreeNode *> LoadTile::apply(const TreeNode *node, TilingResult &result) const {
   auto val = dynamic_cast<const OperandNode *>(node);
   auto op = dynamic_cast<const LoadNode *>(val->getChild());
   auto addr = op->getAddr();
   vector<const TreeNode *> leaves = {addr};
 
-  CodeBlock *block = new CodeBlock();
+  auto *block = new CodeBlock();
   auto insts = generateLoad(val->toStr(), addr->toStr());
   block->addInstructions(insts);
   addBlock(node, leaves, block, result);
@@ -223,14 +211,13 @@ int AssignTile::match(const TreeNode *node) const {
     return 0;
   return 2;
 }
-vector<const TreeNode *> AssignTile::apply(const TreeNode *node,
-                                           FunctionTilingResult &result) const {
+vector<const TreeNode *> AssignTile::apply(const TreeNode *node, TilingResult &result) const {
   auto lhs = dynamic_cast<const OperandNode *>(node);
   auto op = dynamic_cast<const AssignNode *>(lhs->getChild());
   auto rhs = op->getRhs();
   vector<const TreeNode *> leaves = {rhs};
 
-  CodeBlock *block = new CodeBlock();
+  auto *block = new CodeBlock();
   auto insts = generateAssign(lhs->toStr(), rhs->toStr());
   block->addInstructions(insts);
   addBlock(node, leaves, block, result);
@@ -248,12 +235,11 @@ int BranchTile::match(const TreeNode *node) const {
     return 0;
   return 1;
 }
-vector<const TreeNode *> BranchTile::apply(const TreeNode *node,
-                                           FunctionTilingResult &result) const {
+vector<const TreeNode *> BranchTile::apply(const TreeNode *node, TilingResult &result) const {
   auto op = dynamic_cast<const BranchNode *>(node);
   auto label = op->getLabel();
 
-  CodeBlock *block = new CodeBlock();
+  auto *block = new CodeBlock();
   auto insts = generateBranch(label->toStr());
   block->addInstructions(insts);
   addBlock(node, {}, block, result);
@@ -271,13 +257,12 @@ int CondBranchTile::match(const TreeNode *node) const {
     return 0;
   return 2;
 }
-vector<const TreeNode *> CondBranchTile::apply(const TreeNode *node,
-                                               FunctionTilingResult &result) const {
+vector<const TreeNode *> CondBranchTile::apply(const TreeNode *node, TilingResult &result) const {
   auto op = dynamic_cast<const CondBranchNode *>(node);
   auto cond = op->getCond(), label = op->getLabel();
   vector<const TreeNode *> leaves = {cond};
 
-  CodeBlock *block = new CodeBlock();
+  auto *block = new CodeBlock();
   auto insts = generateCondBranch(cond->toStr(), label->toStr());
   block->addInstructions(insts);
   addBlock(node, leaves, block, result);
@@ -295,9 +280,8 @@ int ReturnTile::match(const TreeNode *node) const {
     return 0;
   return 1;
 }
-vector<const TreeNode *> ReturnTile::apply(const TreeNode *node,
-                                           FunctionTilingResult &result) const {
-  CodeBlock *block = new CodeBlock();
+vector<const TreeNode *> ReturnTile::apply(const TreeNode *node, TilingResult &result) const {
+  auto *block = new CodeBlock();
   auto insts = generateReturn();
   block->addInstructions(insts);
   addBlock(node, {}, block, result);
@@ -315,13 +299,12 @@ int ReturnValTile::match(const TreeNode *node) const {
     return 0;
   return 1;
 }
-vector<const TreeNode *> ReturnValTile::apply(const TreeNode *node,
-                                              FunctionTilingResult &result) const {
+vector<const TreeNode *> ReturnValTile::apply(const TreeNode *node, TilingResult &result) const {
   auto op = dynamic_cast<const ReturnValNode *>(node);
   auto val = op->getVal();
   vector<const TreeNode *> leaves = {val};
 
-  CodeBlock *block = new CodeBlock();
+  auto *block = new CodeBlock();
   auto insts = generateReturnVal(val->toStr());
   block->addInstructions(insts);
   addBlock(node, leaves, block, result);
@@ -339,12 +322,12 @@ int CallTile::match(const TreeNode *node) const {
     return 0;
   return 2;
 }
-vector<const TreeNode *> CallTile::apply(const TreeNode *node, FunctionTilingResult &result) const {
+vector<const TreeNode *> CallTile::apply(const TreeNode *node, TilingResult &result) const {
   auto op = dynamic_cast<const CallNode *>(node);
   auto callee = op->getCallee();
   auto args = op->getArgs();
 
-  CodeBlock *block = new CodeBlock();
+  auto *block = new CodeBlock();
   vector<string> argStrs;
   auto arguments = dynamic_cast<const Arguments *>(args->getOperand());
   for (auto arg : arguments->getArgs())
@@ -372,14 +355,13 @@ int CallAssignTile::match(const TreeNode *node) const {
     return 0;
   return 3;
 }
-vector<const TreeNode *> CallAssignTile::apply(const TreeNode *node,
-                                               FunctionTilingResult &result) const {
+vector<const TreeNode *> CallAssignTile::apply(const TreeNode *node, TilingResult &result) const {
   auto rst = dynamic_cast<const OperandNode *>(node);
   auto op = dynamic_cast<const CallNode *>(rst->getChild());
   auto callee = op->getCallee();
   auto args = op->getArgs();
 
-  CodeBlock *block = new CodeBlock();
+  auto *block = new CodeBlock();
   vector<string> argStrs;
   auto arguments = dynamic_cast<const Arguments *>(args->getOperand());
   for (auto arg : arguments->getArgs())
@@ -402,9 +384,8 @@ int LabelTile::match(const TreeNode *node) const {
     return 0;
   return 1;
 }
-vector<const TreeNode *> LabelTile::apply(const TreeNode *node,
-                                          FunctionTilingResult &result) const {
-  CodeBlock *block = new CodeBlock();
+vector<const TreeNode *> LabelTile::apply(const TreeNode *node, TilingResult &result) const {
+  auto *block = new CodeBlock();
   vector<string> label = {dynamic_cast<const LabelNode *>(node)->toStr()};
   block->addInstructions(label);
   addBlock(node, {}, block, result);
@@ -417,8 +398,8 @@ const LabelTile *LabelTile::getInstance() {
 }
 const LabelTile *LabelTile::instance = nullptr;
 
-const FunctionTilingResult &doTilingInFunc(const vector<const TreeNode *> &trees) {
-  auto result = new FunctionTilingResult();
+const TilingResult &tileFunction(const Trees &trees) {
+  auto result = new TilingResult();
 
   vector<const TreeNode *> subRoots = trees;
   const TreeNode *curr;
@@ -452,13 +433,6 @@ const FunctionTilingResult &doTilingInFunc(const vector<const TreeNode *> &trees
   }
 
   return *result;
-}
-
-const TilingResult &doTiling(const TreeResult &treeResult) {
-  auto &tilingResult = *(new TilingResult());
-  for (auto &[F, trees] : treeResult)
-    tilingResult.insert({F, doTilingInFunc(trees)});
-  return tilingResult;
 }
 
 } // namespace L3

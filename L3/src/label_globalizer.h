@@ -9,7 +9,6 @@ public:
   static void initialize(Program *P);
 
 private:
-  LabelGlobalizer();
   static std::string prefix;
   static int count;
   static bool initialized;

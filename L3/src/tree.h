@@ -6,34 +6,34 @@
 using namespace std;
 
 #include <L3.h>
+#include <liveness_analyzer.h>
 
 namespace L3 {
 
 class OperandNode;
-class TreeContext;
 
 class TreeNode {
 public:
-  const TreeContext *getContext() const;
-  void setContext(TreeContext *context);
   virtual string toStr() const = 0;
-
-private:
-  TreeContext *context;
 };
 
 class OperationNode : public TreeNode {};
 class OperandNode : public TreeNode {
 public:
-  OperandNode(const Item *operand);
+  enum Status { MERGABLE, UNMERGABLE, MERGED };
+  explicit OperandNode(const Item *operand);
   const Item *getOperand() const;
   const OperationNode *getChild() const;
   void setChild(OperationNode *child);
   string toStr() const override;
 
+  void setStatus(Status status) { this->status = status; }
+  Status getStatus() const { return status; }
+
 private:
   const Item *operand;
   const OperationNode *child;
+  Status status{};
 };
 
 class CallNode : public OperationNode {
@@ -45,7 +45,7 @@ public:
   string toStr() const override;
 
 private:
-  const OperandNode *callee, *args;
+  const OperandNode *callee{}, *args{};
 };
 
 class ReturnNode : public OperationNode {
@@ -60,7 +60,7 @@ public:
   string toStr() const override;
 
 private:
-  const OperandNode *val;
+  const OperandNode *val{};
 };
 
 class AssignNode : public OperationNode {
@@ -70,7 +70,7 @@ public:
   string toStr() const override;
 
 private:
-  const OperandNode *rhs;
+  const OperandNode *rhs{};
 };
 
 class CompareNode : public OperationNode {
@@ -84,8 +84,8 @@ public:
   string toStr() const override;
 
 private:
-  const CompareOp *op;
-  const OperandNode *lhs, *rhs;
+  const CompareOp *op{};
+  const OperandNode *lhs{}, *rhs{};
 };
 
 class LoadNode : public OperationNode {
@@ -95,17 +95,20 @@ public:
   string toStr() const override;
 
 private:
-  const OperandNode *addr;
+  const OperandNode *addr{};
 };
 
 class StoreNode : public OperationNode {
 public:
   void setVal(const OperandNode *val);
+  void setAddr(const OperandNode *addr);
   const OperandNode *getVal() const;
+        const OperandNode *getAddr() const;
   string toStr() const override;
 
 private:
-  const OperandNode *val;
+  const OperandNode *val{};
+  const OperandNode *addr{};
 };
 
 class ArithmeticNode : public OperationNode {
@@ -119,8 +122,8 @@ public:
   string toStr() const override;
 
 private:
-  const ArithOp *op;
-  const OperandNode *lhs, *rhs;
+  const ArithOp *op{};
+  const OperandNode *lhs{}, *rhs{};
 };
 
 class BranchNode : public OperationNode {
@@ -130,7 +133,7 @@ public:
   string toStr() const override;
 
 private:
-  const OperandNode *label;
+  const OperandNode *label{};
 };
 
 class CondBranchNode : public OperationNode {
@@ -142,7 +145,7 @@ public:
   string toStr() const override;
 
 private:
-  const OperandNode *cond, *label;
+  const OperandNode *cond{}, *label{};
 };
 
 class LabelNode : public OperationNode {
@@ -152,20 +155,11 @@ public:
   string toStr() const override;
 
 private:
-  const Label *label;
+  const Label *label{};
 };
 
-class TreeContext {
-public:
-  void addTreeRoot(TreeNode *root);
-  const vector<const TreeNode *> &getTreeRoots() const;
+typedef vector<const TreeNode *> Trees;
 
-private:
-  vector<const TreeNode *> treeRoots;
-};
-
-typedef unordered_map<const Function *, const vector<const TreeNode *> &> TreeResult;
-
-const TreeResult &constructTrees(const Program *P);
+const Trees &constructTrees(const Function *F, const LivenessResult &liveness);
 
 } // namespace L3

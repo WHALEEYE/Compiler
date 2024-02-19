@@ -1,15 +1,15 @@
 #include <string>
 #include <vector>
 
+#include "liveness_analyzer.h"
 #include <L3.h>
 #include <helper.h>
+#include <stdexcept>
 #include <tree.h>
 
 namespace L3 {
 
-void TreeNode::setContext(TreeContext *context) { this->context = context; }
-
-OperandNode::OperandNode(const Item *operand) : operand(operand), child(nullptr) {}
+OperandNode::OperandNode(const Item *operand) : operand(operand), child(nullptr), status(MERGABLE) {}
 const Item *OperandNode::getOperand() const { return operand; }
 const OperationNode *OperandNode::getChild() const { return child; }
 void OperandNode::setChild(OperationNode *child) { this->child = child; }
@@ -69,9 +69,9 @@ void LabelNode::setLabel(const Label *label) { this->label = label; }
 const Label *LabelNode::getLabel() const { return label; }
 string LabelNode::toStr() const { return label->toStr(); }
 
-void TreeContext::addTreeRoot(TreeNode *root) { this->treeRoots.push_back(root); }
-const vector<const TreeNode *> &TreeContext::getTreeRoots() const { return treeRoots; }
-
+/*
+ * a context-wise tree constructor
+ */
 class TreeConstructor : public Visitor {
 public:
   void visit(const Variable *var) override {}
@@ -83,6 +83,67 @@ public:
   void visit(const RuntimeFunction *func) override {}
   void visit(const FunctionName *name) override {}
   void visit(const Label *label) override {}
+
+  void visit(const AssignInst *inst) override {
+    auto opNode = new AssignNode();
+    opNode->setRhs(new OperandNode(inst->getRhs()));
+    auto node = new OperandNode(inst->getLhs());
+    node->setChild(opNode);
+    this->node = node;
+  }
+
+  void visit(const CompareInst *inst) override {
+    auto opNode = new CompareNode();
+    opNode->setLhs(new OperandNode(inst->getLhs()));
+    opNode->setRhs(new OperandNode(inst->getRhs()));
+    opNode->setOp(inst->getOp());
+    auto node = new OperandNode(inst->getRst());
+    node->setChild(opNode);
+    this->node = node;
+  }
+
+  void visit(const LoadInst *inst) override {
+    auto opNode = new LoadNode();
+    opNode->setAddr(new OperandNode(inst->getAddr()));
+    auto node = new OperandNode(inst->getVal());
+    node->setChild(opNode);
+    this->node = node;
+
+    disableMemAccess();
+  }
+
+  void visit(const StoreInst *inst) override {
+    auto opNode = new StoreNode();
+    opNode->setAddr(tryGetMergeNode(inst->getAddr()));
+    opNode->setVal(tryGetMergeNode(inst->getVal()));
+    this->node = opNode;
+
+    disableMemAccess();
+  }
+
+  void visit(const ArithInst *inst) override {
+    auto opNode = new ArithmeticNode();
+    opNode->setLhs(tryGetMergeNode(inst->getLhs()));
+    opNode->setRhs(tryGetMergeNode(inst->getRhs()));
+    opNode->setOp(inst->getOp());
+    auto node = new OperandNode(inst->getRst());
+    node->setChild(opNode);
+    this->node = node;
+  }
+
+  // insts that do not belong to conetxts
+  void visit(const BranchInst *inst) override {
+    auto opNode = new BranchNode();
+    opNode->setLabel(new OperandNode(inst->getLabel()));
+    this->node = opNode;
+  }
+
+  void visit(const CondBranchInst *inst) override {
+    auto opNode = new CondBranchNode();
+    opNode->setCond(new OperandNode(inst->getCondition()));
+    opNode->setLabel(new OperandNode(inst->getLabel()));
+    this->node = opNode;
+  }
 
   void visit(const CallInst *inst) override {
     auto opNode = new CallNode();
@@ -117,61 +178,32 @@ public:
     this->node = opNode;
   }
 
-  void visit(const AssignInst *inst) override {
-    auto opNode = new AssignNode();
-    opNode->setRhs(new OperandNode(inst->getRhs()));
-    auto node = new OperandNode(inst->getLhs());
-    node->setChild(opNode);
-    this->node = node;
+  void enterFunction(const LivenessResult &liveness) {
+    this->changeContext();
+    this->liveness = &liveness;
   }
 
-  void visit(const CompareInst *inst) override {
-    auto opNode = new CompareNode();
-    opNode->setLhs(new OperandNode(inst->getLhs()));
-    opNode->setRhs(new OperandNode(inst->getRhs()));
-    opNode->setOp(inst->getOp());
-    auto node = new OperandNode(inst->getRst());
-    node->setChild(opNode);
-    this->node = node;
+  void changeContext() { this->definedVars.clear(); }
+
+  OperandNode *tryGetMergeNode(const Item *item) {
+    if (!dynamic_cast<const Variable *>(item))
+      return new OperandNode(item);
+    auto var = dynamic_cast<const Variable *>(item);
+    if (definedVars.find(var) != definedVars.end() && definedVars[var]->getStatus() == OperandNode::Status::MERGABLE) {
+      definedVars[var]->setStatus(OperandNode::Status::MERGED);
+      return definedVars[var];
+    }
+    return new OperandNode(var);
   }
 
-  void visit(const LoadInst *inst) override {
-    auto opNode = new LoadNode();
-    opNode->setAddr(new OperandNode(inst->getAddr()));
-    auto node = new OperandNode(inst->getVal());
-    node->setChild(opNode);
-    this->node = node;
-  }
-
-  void visit(const StoreInst *inst) override {
-    auto opNode = new StoreNode();
-    opNode->setVal(new OperandNode(inst->getVal()));
-    auto node = new OperandNode(inst->getAddr());
-    node->setChild(opNode);
-    this->node = node;
-  }
-
-  void visit(const ArithInst *inst) override {
-    auto opNode = new ArithmeticNode();
-    opNode->setLhs(new OperandNode(inst->getLhs()));
-    opNode->setRhs(new OperandNode(inst->getRhs()));
-    opNode->setOp(inst->getOp());
-    auto node = new OperandNode(inst->getRst());
-    node->setChild(opNode);
-    this->node = node;
-  }
-
-  void visit(const BranchInst *inst) override {
-    auto opNode = new BranchNode();
-    opNode->setLabel(new OperandNode(inst->getLabel()));
-    this->node = opNode;
-  }
-
-  void visit(const CondBranchInst *inst) override {
-    auto opNode = new CondBranchNode();
-    opNode->setCond(new OperandNode(inst->getCondition()));
-    opNode->setLabel(new OperandNode(inst->getLabel()));
-    this->node = opNode;
+  void disableMemAccess() {
+    for (auto &[var, node] : definedVars) {
+      if (!dynamic_cast<const LoadNode *>(node->getChild()))
+        continue;
+      if (node->getStatus() != OperandNode::Status::MERGABLE)
+        continue;
+      node->setStatus(OperandNode::Status::UNMERGABLE);
+    }
   }
 
   TreeNode *getNode() const { return node; }
@@ -180,46 +212,41 @@ public:
       instance = new TreeConstructor();
     return instance;
   }
-
-private:
-  TreeConstructor() = default;
   TreeConstructor(const TreeConstructor &) = delete;
   TreeConstructor &operator=(const TreeConstructor &) = delete;
 
-  TreeNode *node;
+private:
+  TreeConstructor() = default;
   static TreeConstructor *instance;
+  TreeNode *node{};
+
+  bool defining = false;
+  unordered_map<const Variable *, OperandNode *> definedVars;
+  unordered_map<const Variable *, OperandNode *> usedVars;
+
+  const LivenessResult *liveness{};
 };
 TreeConstructor *TreeConstructor::instance = nullptr;
 
-const vector<const TreeNode *> &constructTreesInFunc(const Function *F) {
+const Trees &constructTrees(const Function *F, const LivenessResult &liveness) {
   auto constructor = TreeConstructor::getInstance();
+  constructor->enterFunction(liveness);
   const Context *last = nullptr, *cxt;
-  TreeContext *curr;
-  auto &roots = *(new vector<const TreeNode *>());
-  for (auto I : F->getInstructions()) {
-    debug("constructing tree for " + I->toStr());
-    I->accept(*constructor);
-    auto root = constructor->getNode();
-    cxt = I->getContext();
-    if (cxt) {
+  auto &trees = *(new Trees());
+  for (auto BB : F->getBasicBlocks()) {
+    for (auto I : BB->getInstructions()) {
+      cxt = I->getContext();
       if (cxt != last)
-        curr = new TreeContext();
+        constructor->changeContext();
+      last = cxt;
 
-      root->setContext(curr);
-      curr->addTreeRoot(root);
-    } else
-      root->setContext(nullptr);
-
-    roots.push_back(root);
-    last = cxt;
+      debug("constructing tree for " + I->toStr());
+      I->accept(*constructor);
+      auto root = constructor->getNode();
+      trees.push_back(root);
+    }
   }
-  return roots;
+  return trees;
 }
 
-const TreeResult &constructTrees(const Program *P) {
-  auto &result = *(new TreeResult());
-  for (auto F : P->getFunctions())
-    result.insert({F, constructTreesInFunc(F)});
-  return result;
-}
 } // namespace L3
