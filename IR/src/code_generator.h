@@ -1,9 +1,9 @@
-#include <L3.h>
+#include <IR.h>
 
 using namespace std;
 
-namespace L3 {
+namespace IR {
 
 void generate_code(Program *P);
 
-} // namespace L3
+} // namespace IR

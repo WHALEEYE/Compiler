@@ -5,13 +5,13 @@
 #include <tao/pegtl.hpp>
 #include <tao/pegtl/contrib/analyze.hpp>
 
-#include <L3.h>
+#include <IR.h>
 #include <helper.h>
 #include <parser.h>
 
 using namespace TAO_PEGTL_NAMESPACE;
 
-namespace L3 {
+namespace IR {
 
 // clang-format off
 class ItemStack {
@@ -762,7 +762,7 @@ template <> struct action<call_assign_inst> {
 };
 
 void linkBasicBlocks(Function *F) {
-  debug("Started linking basic blocks.");
+  debug("Started linking basic blocks for function " + F->getName());
 
   std::map<std::string, BasicBlock *> labelToBB;
   // find all basic blocks that starts with a label
@@ -805,7 +805,10 @@ Program *parseFile(char *fileName) {
   file_input<> fileInput(fileName);
   auto P = new Program();
   parse<grammar, action>(fileInput, *P);
+  for (auto F : P->getFunctions()) {
+    linkBasicBlocks(F);
+  }
   return P;
 }
 
-} // namespace L3
+} // namespace IR

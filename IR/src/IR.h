@@ -6,7 +6,7 @@
 #include <unordered_set>
 #include <vector>
 
-namespace L3 {
+namespace IR {
 
 class Visitor;
 class Value;
@@ -406,13 +406,13 @@ public:
 
 class RetValueInst : public Instruction {
 public:
-  explicit RetValueInst(const Value *val);
-  const Value *getVal() const;
+  explicit RetValueInst(const Value *value);
+  const Value *getValue() const;
   std::string toStr() const override;
   void accept(Visitor &visitor) const override;
 
 private:
-  const Value *val;
+  const Value *value;
 };
 
 class LabelInst : public Instruction {
@@ -518,6 +518,7 @@ public:
 
   void defineVariable(const std::string &name, const Type *type);
   Variable *getVariable(const std::string &name);
+  const std::unordered_map<std::string, Variable *> &getVariables() const;
   Label *getLabel(const std::string &name);
   const std::unordered_map<std::string, Label *> &getLabels() const;
 
@@ -536,6 +537,8 @@ private:
   std::unordered_map<std::string, Variable *> variables;
   // the name of a label may need to be changed later
   std::unordered_map<std::string, Label *> labels;
+
+  friend void rearrangeBBs(Function *F);
 };
 
 class Program {

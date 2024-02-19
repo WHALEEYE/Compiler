@@ -5,9 +5,9 @@
 #include <vector>
 using namespace std;
 
-#include <L3.h>
+#include <IR.h>
 
-namespace L3 {
+namespace IR {
 
 std::string Item::toStr() const { throw runtime_error("Item::toStr() not implemented"); }
 void Item::accept(Visitor &visitor) const { throw runtime_error("Item::accept() not implemented"); }
@@ -241,9 +241,9 @@ void NewTupleInst::accept(Visitor &visitor) const { visitor.visit(this); }
 string RetInst::toStr() const { return "return"; }
 void RetInst::accept(Visitor &visitor) const { visitor.visit(this); }
 
-RetValueInst::RetValueInst(const Value *val) : val{val} {}
-const Value *RetValueInst::getVal() const { return val; }
-string RetValueInst::toStr() const { return "return " + val->toStr(); }
+RetValueInst::RetValueInst(const Value *value) : value{value} {}
+const Value *RetValueInst::getValue() const { return value; }
+string RetValueInst::toStr() const { return "return " + value->toStr(); }
 void RetValueInst::accept(Visitor &visitor) const { visitor.visit(this); }
 
 LabelInst::LabelInst(const Label *label) : label{label} {}
@@ -317,6 +317,7 @@ Variable *Function::getVariable(const string &name) {
     throw runtime_error("Variable " + name + " not found");
   return variables[name];
 }
+const unordered_map<string, Variable *> &Function::getVariables() const { return variables; }
 const unordered_map<string, Label *> &Function::getLabels() const { return labels; }
 void Function::addInstruction(Instruction *inst) { basicBlocks.back()->addInstruction(inst); }
 Label *Function::getLabel(const string &name) {
@@ -324,12 +325,14 @@ Label *Function::getLabel(const string &name) {
     labels[name] = new Label(name);
   return labels[name];
 }
+
 void Function::newBasicBlock() {
   if (basicBlocks.back()->empty())
     return;
   basicBlocks.push_back(new BasicBlock());
 }
 const vector<BasicBlock *> &Function::getBasicBlocks() const { return basicBlocks; }
+
 string Function::toStr() const {
   string str;
   str += "define " + returnType->toStr() + " " + name + "(" + params->toStr() + ") {\n";
@@ -353,4 +356,4 @@ string Program::toStr() const {
     str += F->toStr() + "\n";
   return str;
 }
-} // namespace L3
+} // namespace IR

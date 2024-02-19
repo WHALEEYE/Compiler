@@ -1,7 +1,7 @@
 #pragma once
 
-#include <L3.h>
+#include <IR.h>
 
-namespace L3 {
+namespace IR {
 Program *parseFile(char *fileName);
-} // namespace L3
+} // namespace IR

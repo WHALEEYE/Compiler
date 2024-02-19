@@ -7,6 +7,7 @@ using namespace std;
 #include <code_generator.h>
 #include <helper.h>
 #include <parser.h>
+#include <trace.h>
 
 void printHelp(char *progName) {
   cerr << "Usage: " << progName << " [-v] [-g 0|1] [-O 0|1|2] [-s] [-l] [-i] [-d] SOURCE" << endl;
@@ -53,9 +54,17 @@ int main(int argc, char **argv) {
   /*
    * Parse the input file.
    */
-  L3::Program *P = L3::parseFile(argv[optind]);
+  IR::Program *P = IR::parseFile(argv[optind]);
 
   if (verbose) {
+    cout << "before:" << endl;
+    cout << P->toStr();
+  }
+  for (auto F : P->getFunctions()) {
+    IR::rearrangeBBs(F);
+  }
+  if (verbose) {
+    cout << "after:" << endl;
     cout << P->toStr();
   }
 
