@@ -1,9 +1,14 @@
+#include "tile.h"
+#include "tree.h"
 #include <cstdlib>
+#include <cstring>
 #include <iostream>
+#include <stdint.h>
 #include <unistd.h>
 
 using namespace std;
 
+#include <L3.h>
 #include <code_generator.h>
 #include <helper.h>
 #include <label_globalizer.h>
@@ -11,6 +16,7 @@ using namespace std;
 
 void printHelp(char *progName) {
   cerr << "Usage: " << progName << " [-v] [-g 0|1] [-O 0|1|2] [-s] [-l] [-i] [-d] SOURCE" << endl;
+  return;
 }
 
 int main(int argc, char **argv) {
@@ -30,11 +36,11 @@ int main(int argc, char **argv) {
   while ((opt = getopt(argc, argv, "vg:O:d")) != -1) {
     switch (opt) {
     case 'O':
-      optLevel = strtoul(optarg, nullptr, 0);
+      optLevel = strtoul(optarg, NULL, 0);
       break;
 
     case 'g':
-      enableCodeGenerator = strtoul(optarg, nullptr, 0) != 0;
+      enableCodeGenerator = (strtoul(optarg, NULL, 0) == 0) ? false : true;
       break;
 
     case 'v':
@@ -70,14 +76,9 @@ int main(int argc, char **argv) {
    * Generate the target code.
    */
   if (enableCodeGenerator) {
-    unordered_map<const L3::Function *, const L3::TilingResult &> programTilingResult;
-    for (auto F : P->getFunctions()) {
-      auto &liveness = L3::analyzeLiveness(F);
-      auto &trees = L3::constructTrees(F, liveness);
-      auto &tilingResult = L3::tileFunction(trees);
-      programTilingResult.insert({F, tilingResult});
-    }
-    L3::generate_code(programTilingResult, P);
+    auto &treeResult = L3::constructTrees(P);
+    auto &tilingResult = L3::doTiling(treeResult);
+    L3::generate_code(tilingResult, P);
   }
 
   return 0;

@@ -2,7 +2,6 @@
 
 #include <string>
 #include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 namespace L3 {
@@ -22,7 +21,7 @@ class Value : public Item {};
 class Variable : public Value {
 public:
   std::string getName() const;
-  explicit Variable(std::string name);
+  Variable(std::string name);
   std::string toStr() const override;
   void accept(Visitor &visitor) const override;
 
@@ -32,7 +31,7 @@ private:
 
 class Number : public Value {
 public:
-  explicit Number(int64_t val);
+  Number(int64_t val);
   int64_t getVal() const;
   std::string toStr() const override;
   void accept(Visitor &visitor) const override;
@@ -126,18 +125,20 @@ public:
 
   std::string getName() const;
   std::string toStr() const override;
+  ID getID() const;
   void accept(Visitor &visitor) const override;
 
 private:
-  explicit RuntimeFunction(std::string name);
+  RuntimeFunction(ID id, std::string name);
   static const std::unordered_map<ID, RuntimeFunction *> enumMap;
 
+  const ID id;
   std::string name;
 };
 
 class FunctionName : public Item {
 public:
-  explicit FunctionName(std::string name);
+  FunctionName(std::string name);
   std::string getName() const;
   std::string toStr() const override;
   void accept(Visitor &visitor) const override;
@@ -148,7 +149,7 @@ private:
 
 class Label : public Item {
 public:
-  explicit Label(std::string name);
+  Label(std::string name);
   std::string getName() const;
   std::string toStr() const override;
   void accept(Visitor &visitor) const override;
@@ -167,11 +168,11 @@ class Instruction {
 public:
   virtual std::string toStr() const = 0;
   virtual void accept(Visitor &visitor) const = 0;
-  void setContext(const Context *context);
+  void setContext(const Context *cxt);
   const Context *getContext() const;
 
 private:
-  const Context *cxt{};
+  const Context *cxt;
 };
 
 /*
@@ -192,7 +193,8 @@ private:
 
 class ArithInst : public Instruction {
 public:
-  ArithInst(const Variable *lval, const Value *arithLval, const ArithOp *op, const Value *arithRval);
+  ArithInst(const Variable *lval, const Value *arithLval, const ArithOp *op,
+            const Value *arithRval);
   const Variable *getRst() const;
   const Value *getLhs() const;
   const ArithOp *getOp() const;
@@ -209,7 +211,8 @@ private:
 
 class CompareInst : public Instruction {
 public:
-  CompareInst(const Variable *lval, const Value *cmpLval, const CompareOp *op, const Value *cmpRval);
+  CompareInst(const Variable *lval, const Value *cmpLval, const CompareOp *op,
+              const Value *cmpRval);
   const Variable *getRst() const;
   const Value *getLhs() const;
   const CompareOp *getOp() const;
@@ -258,7 +261,7 @@ public:
 
 class RetValueInst : public Instruction {
 public:
-  explicit RetValueInst(const Value *val);
+  RetValueInst(const Value *val);
   const Value *getVal() const;
   std::string toStr() const override;
   void accept(Visitor &visitor) const override;
@@ -269,7 +272,7 @@ private:
 
 class LabelInst : public Instruction {
 public:
-  explicit LabelInst(const Label *label);
+  LabelInst(const Label *label);
   const Label *getLabel() const;
   std::string toStr() const override;
   void accept(Visitor &visitor) const override;
@@ -280,7 +283,7 @@ private:
 
 class BranchInst : public Instruction {
 public:
-  explicit BranchInst(const Label *label);
+  BranchInst(const Label *label);
   const Label *getLabel() const;
   std::string toStr() const override;
   void accept(Visitor &visitor) const override;
@@ -331,29 +334,8 @@ private:
 };
 
 /*
- * Structures.
+ * Structres.
  */
-class BasicBlock {
-public:
-  const std::vector<const Instruction *> &getInstructions() const;
-  void addInstruction(const Instruction *inst);
-  const std::unordered_set<BasicBlock *> &getPredecessors() const;
-  void addPredecessor(BasicBlock *BB);
-  void removePredecessor(BasicBlock *BB);
-  const std::unordered_set<BasicBlock *> &getSuccessors() const;
-  void addSuccessor(BasicBlock *BB);
-  void removeSuccessor(BasicBlock *BB);
-  const Instruction *getFirstInstruction() const;
-  const Instruction *getTerminator() const;
-  bool empty() const;
-  std::string toStr() const;
-
-private:
-  std::vector<const Instruction *> instructions;
-  std::unordered_set<BasicBlock *> predecessors;
-  std::unordered_set<BasicBlock *> successors;
-};
-
 class Context {
 public:
   const std::vector<const Instruction *> &getInstructions() const;
@@ -365,25 +347,23 @@ private:
 
 class Function {
 public:
-  explicit Function(std::string name);
+  Function(std::string name);
   std::string getName() const;
   const Parameters *getParams() const;
-  void setParams(const Parameters *parameters);
-  const Variable *getVariable(const std::string &name);
-  bool hasVariable(const std::string &name) const;
+  void setParams(const Parameters *params);
+  const Variable *getVariable(std::string name);
+  const Label *getLabel(std::string name);
+  bool hasVariable(std::string name) const;
   const std::unordered_map<std::string, const Variable *> &getVariables() const;
   const std::unordered_map<std::string, Label *> &getLabels() const;
   void addInstruction(Instruction *inst);
-  const Label *getLabel(const std::string &name);
-  void newBasicBlock();
-  void newLinkedBasicBlock();
-  const std::vector<BasicBlock *> &getBasicBlocks() const;
+  const std::vector<const Instruction *> &getInstructions() const;
   std::string toStr() const;
 
 private:
   std::string name;
-  const Parameters *params{};
-  std::vector<BasicBlock *> basicBlocks;
+  const Parameters *params;
+  std::vector<const Instruction *> instructions;
   std::unordered_map<std::string, const Variable *> variables;
   std::unordered_map<std::string, Label *> labels;
 };
@@ -397,16 +377,13 @@ public:
   void addInstruction(Instruction *inst);
   void newContext();
   void closeContext();
-  const Variable *getVariable(const std::string &name) const;
-  const Label *getLabel(const std::string &name) const;
-  void newBasicBlock() const;
-  void newLinkedBasicBlock() const;
+  const Variable *getVariable(std::string name);
+  const Label *getLabel(std::string name);
   std::string toStr() const;
 
+private:
   Program(const Program &) = delete;
   Program &operator=(const Program &) = delete;
-
-private:
   std::vector<Function *> functions;
   Context *currContext;
 };

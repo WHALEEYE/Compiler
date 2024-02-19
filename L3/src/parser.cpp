@@ -3,7 +3,11 @@
 #include <vector>
 
 #include <tao/pegtl.hpp>
+#include <tao/pegtl/ascii.hpp>
 #include <tao/pegtl/contrib/analyze.hpp>
+#include <tao/pegtl/contrib/raw_string.hpp>
+#include <tao/pegtl/internal/pegtl_string.hpp>
+#include <tao/pegtl/rules.hpp>
 
 #include <L3.h>
 #include <helper.h>
@@ -182,7 +186,7 @@ struct i : sor<
 struct instructions : plus<seq<seps, bol, spaces, i, seps>> {};
 
 struct function : seq<
-                    seq<spaces, def>,
+                    seq<spaces, def>, 
                     seps_with_comments,
                     seq<spaces, func>,
                     seps_with_comments,
@@ -485,7 +489,6 @@ template <> struct action<ret_inst> {
     auto I = new RetInst();
     P.addInstruction(I);
     P.newContext();
-    P.newBasicBlock();
     debug("parsed return instruction " + I->toStr());
   }
 };
@@ -497,7 +500,6 @@ template <> struct action<ret_val_inst> {
     auto I = new RetValueInst(rval);
     P.addInstruction(I);
     P.newContext();
-    P.newBasicBlock();
     debug("parsed return value instruction " + I->toStr());
   }
 };
@@ -507,7 +509,6 @@ template <> struct action<label_inst> {
     auto label = P.getLabel(in.string());
     auto I = new LabelInst(label);
     P.closeContext();
-    P.newBasicBlock();
     P.addInstruction(I);
     P.newContext();
     debug("parsed label instruction " + I->toStr());
@@ -520,7 +521,6 @@ template <> struct action<branch_inst> {
     auto I = new BranchInst(label);
     P.addInstruction(I);
     P.newContext();
-    P.newBasicBlock();
     debug("parsed branch instruction " + I->toStr());
   }
 };
@@ -532,7 +532,6 @@ template <> struct action<cond_branch_inst> {
     auto I = new CondBranchInst(condition, label);
     P.addInstruction(I);
     P.newContext();
-    P.newLinkedBasicBlock();
     debug("parsed conditional branch instruction " + I->toStr());
   }
 };

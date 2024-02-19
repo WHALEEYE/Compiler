@@ -1,13 +1,11 @@
 #include <L3.h>
 #include <label_globalizer.h>
 
-#include <utility>
-
 using namespace std;
 
 namespace L3 {
 
-void renameLabel(Label *label, string newName) { label->name = std::move(newName); }
+void renameLabel(Label *label, string newName) { label->name = newName; }
 
 string LabelGlobalizer::prefix = ":global";
 int LabelGlobalizer::count = 0;
