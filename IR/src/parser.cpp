@@ -433,8 +433,7 @@ template <> struct action<int64_str> {
 
 template <> struct action<tuple_str> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto tupleType = new TupleType();
-    itemStack.push(tupleType);
+    itemStack.push(TupleType::getInstance());
     debug("parsed tuple type");
   }
 };
@@ -668,9 +667,7 @@ template <> struct action<new_arr_inst> {
     }
 
     auto array = (Variable *)itemStack.pop();
-    auto arrayType = (ArrayType *)array->getType();
-    arrayType->setSizes(sizes);
-    auto I = new NewArrayInst(array);
+    auto I = new NewArrayInst(array, sizes);
     P.addInstruction(I);
     debug("parsed new array instruction " + I->toStr());
   }
@@ -682,9 +679,7 @@ template <> struct action<new_tup_inst> {
     auto size = (const Value *)itemStack.pop();
     itemStack.pop();
     auto tuple = (const Variable *)itemStack.pop();
-    auto tupleType = (TupleType *)tuple->getType();
-    tupleType->setSize(size);
-    auto I = new NewTupleInst(tuple);
+    auto I = new NewTupleInst(tuple, size);
     P.addInstruction(I);
     debug("parsed new tuple instruction " + I->toStr());
   }

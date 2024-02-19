@@ -37,27 +37,26 @@ class ArrayType : public Type {
 public:
   void increaseDim();
   int64_t getDim() const;
-  void setSizes(const std::vector<const Value *> &sizes);
-  const std::vector<const Value *> &getSizes() const;
 
   std::string toStr() const override;
   void accept(Visitor &visitor) const override;
 
 private:
   int64_t dim;
-  std::vector<const Value *> sizes;
 };
 
 class TupleType : public Type {
 public:
-  void setSize(const Value *size);
-  const Value *getSize() const;
-
   std::string toStr() const override;
   void accept(Visitor &visitor) const override;
 
+  TupleType(const TupleType &) = delete;
+  TupleType &operator=(const TupleType &) = delete;
+  static TupleType *getInstance();
+
 private:
-  const Value *size;
+  TupleType() = default;
+  static TupleType *instance;
 };
 
 class CodeType : public Type {
@@ -377,25 +376,30 @@ private:
 
 class NewArrayInst : public Instruction {
 public:
-  NewArrayInst(const Variable *array);
+  NewArrayInst(const Variable *array, const std::vector<const Value *> &sizes);
   const Variable *getArray() const;
+  const std::vector<const Value *> &getSizes() const;
 
   std::string toStr() const override;
   void accept(Visitor &visitor) const override;
 
 private:
   const Variable *array;
+  const std::vector<const Value *> sizes;
 };
 
 class NewTupleInst : public Instruction {
 public:
-  NewTupleInst(const Variable *tuple);
+  NewTupleInst(const Variable *tuple, int64_t size);
+
   const Variable *getTuple() const;
+  int64_t getSize() const;
   std::string toStr() const override;
   void accept(Visitor &visitor) const override;
 
 private:
   const Variable *tuple;
+  const int64_t size;
 };
 
 class RetInst : public Instruction {
@@ -599,4 +603,4 @@ public:
   virtual void visit(const CallAssignInst *inst) = 0;
 };
 
-} // namespace L3
+} // namespace IR

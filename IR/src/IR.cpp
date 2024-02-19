@@ -42,8 +42,6 @@ void Int64Type::accept(Visitor &visitor) const { visitor.visit(this); }
 
 void ArrayType::increaseDim() { dim++; }
 int64_t ArrayType::getDim() const { return dim; }
-void ArrayType::setSizes(const vector<const Value *> &sizes) { this->sizes = sizes; }
-const vector<const Value *> &ArrayType::getSizes() const { return sizes; }
 string ArrayType::toStr() const {
   string str = "int64";
   for (auto i = 0; i < dim; i++)
@@ -52,8 +50,8 @@ string ArrayType::toStr() const {
 }
 void ArrayType::accept(Visitor &visitor) const { visitor.visit(this); }
 
-void TupleType::setSize(const Value *size) { this->size = size; }
-const Value *TupleType::getSize() const { return size; }
+TupleType* TupleType::instance = new TupleType();
+TupleType* TupleType::getInstance() { return instance; }
 string TupleType::toStr() const { return "tuple"; }
 void TupleType::accept(Visitor &visitor) const { visitor.visit(this); }
 
@@ -217,8 +215,9 @@ const Variable *TupleLenInst::getBase() const { return base; }
 string TupleLenInst::toStr() const { return result->toStr() + " <- length " + base->toStr(); }
 void TupleLenInst::accept(Visitor &visitor) const { visitor.visit(this); }
 
-NewArrayInst::NewArrayInst(const Variable *array) : array{array} {}
+NewArrayInst::NewArrayInst(const Variable *array, const vector<const Value *> &sizes) : array(array), sizes(sizes) {}
 const Variable *NewArrayInst::getArray() const { return array; }
+const vector<const Value *> &NewArrayInst::getSizes() const { return sizes; }
 string NewArrayInst::toStr() const {
   string str = array->toStr() + " <- new Array(";
   auto sizes = ((ArrayType *)array->getType())->getSizes();
@@ -228,13 +227,12 @@ string NewArrayInst::toStr() const {
 }
 void NewArrayInst::accept(Visitor &visitor) const { visitor.visit(this); }
 
-NewTupleInst::NewTupleInst(const Variable *tuple) : tuple{tuple} {}
+NewTupleInst::NewTupleInst(const Variable *tuple, int64_t size) : tuple(tuple), size(size) {}
 const Variable *NewTupleInst::getTuple() const { return tuple; }
+int64_t NewTupleInst::getSize() const { return size; }
 string NewTupleInst::toStr() const {
-  string str = tuple->toStr() + " <- new Tuple(";
-  auto size = ((TupleType *)tuple->getType())->getSize();
-  str += size->toStr();
-  return str + ")";
+  string str = tuple->toStr() + " <- new Tuple(" + to_string(size) + ")";
+  return str;
 }
 void NewTupleInst::accept(Visitor &visitor) const { visitor.visit(this); }
 
