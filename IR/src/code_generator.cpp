@@ -1,4 +1,3 @@
-#include <cstddef>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -239,7 +238,7 @@ public:
 
   void visit(const CondBranchInst *inst) {
     instBuffer.push_back("br " + inst->getCondition()->toStr() + " " + inst->getTrueLabel()->toStr());
-    if (inst->getFalseLabel() != nullptr) 
+    if (inst->getFalseLabel() != nullptr)
       instBuffer.push_back("br " + inst->getFalseLabel()->toStr());
   }
 
