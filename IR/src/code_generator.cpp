@@ -1,9 +1,11 @@
 #include <fstream>
+#include <string>
 #include <vector>
 using namespace std;
 
 #include <IR.h>
 #include <code_generator.h>
+#include <helper.h>
 
 namespace IR {
 
@@ -26,8 +28,8 @@ private:
 };
 
 class L3CodeGenerator : public Visitor {
-
-  vector<string> encodeInsts(string result, const Value *encoded) {
+public:
+  vector<string> generateEncodeInstructions(string result, const Value *encoded) {
     vector<string> insts;
     if (auto var = dynamic_cast<const Variable *>(encoded)) {
       insts.push_back(result + " <- " + var->toStr() + " << 1");
@@ -40,7 +42,7 @@ class L3CodeGenerator : public Visitor {
     return insts;
   }
 
-  vector<string> decodeInsts(string result, const Value *decoded) {
+  vector<string> generateDecodeInstructions(string result, const Value *decoded) {
     vector<string> insts;
     if (auto var = dynamic_cast<const Variable *>(decoded)) {
       insts.push_back(result + " <- " + result + " >> 1");
@@ -53,18 +55,35 @@ class L3CodeGenerator : public Visitor {
     return insts;
   }
 
-  vector<string> getAddress(const MemoryLocation *memLoc, string addrVar) {
+  vector<string> generateEncodeInstructions(string encodedVar) {
+    vector<string> insts;
+    insts.push_back(encodedVar + " <- " + encodedVar + " << 1");
+    insts.push_back(encodedVar + " <- " + encodedVar + " + 1");
+    return insts;
+  }
+
+  vector<string> generateDecodeInstructions(string decodedVar) {
+    vector<string> insts;
+    insts.push_back(decodedVar + " <- " + decodedVar + " >> 1");
+    return insts;
+  }
+
+  vector<string> getL3Address(const MemoryLocation *memLoc, string addrVar) {
     vector<string> insts;
     auto &indices = memLoc->getIndices();
     auto baseType = memLoc->getBase()->getType();
     string offset = varNameGen->next();
 
     if (auto arrType = dynamic_cast<const ArrayType *>(baseType)) {
+      auto sizePtr = varNameGen->next();
+      insts.push_back(sizePtr + " <- " + memLoc->getBase()->toStr());
       vector<string> accums, decodedSizes;
-      for (auto val : arrType->getSizes()) {
+      for (int i = 0; i < arrType->getDim(); i++) {
+        insts.push_back(sizePtr + " <- " + sizePtr + " + 8");
         string decodedSize = varNameGen->next();
         decodedSizes.push_back(decodedSize);
-        vector<string> decodedInsts = decodeInsts(decodedSize, val);
+        insts.push_back(decodedSize + " <- load " + sizePtr);
+        vector<string> decodedInsts = generateDecodeInstructions(decodedSize);
         insts.insert(insts.end(), decodedInsts.begin(), decodedInsts.end());
       }
 
@@ -111,6 +130,7 @@ class L3CodeGenerator : public Visitor {
   void visit(const FunctionName *name) {}
   void visit(const Label *label) {}
   void visit(const DeclarationInst *inst) {}
+
   void visit(const AssignInst *inst) {
     string instruction = inst->getLhs()->toStr() + " <- " + inst->getRhs()->toStr();
     instBuffer.push_back(instruction);
@@ -130,14 +150,14 @@ class L3CodeGenerator : public Visitor {
 
   void visit(const LoadInst *inst) {
     auto addr = varNameGen->next();
-    auto addrInsts = getAddress(inst->getMemLoc(), addr);
+    auto addrInsts = getL3Address(inst->getMemLoc(), addr);
     instBuffer.insert(instBuffer.end(), addrInsts.begin(), addrInsts.end());
     instBuffer.push_back(inst->getTarget()->toStr() + " <- load " + addr);
   }
 
   void visit(const StoreInst *inst) {
     auto addr = varNameGen->next();
-    auto addrInsts = getAddress(inst->getMemLoc(), addr);
+    auto addrInsts = getL3Address(inst->getMemLoc(), addr);
     instBuffer.insert(instBuffer.end(), addrInsts.begin(), addrInsts.end());
     instBuffer.push_back("store " + addr + " " + inst->getSource()->toStr());
   }
@@ -155,17 +175,64 @@ class L3CodeGenerator : public Visitor {
   }
 
   void visit(const TupleLenInst *inst) {
-    instBuffer.push_back(inst->getResult()->toStr() + " <- load " + inst->getBase()->toStr());
+    auto result = inst->getResult()->toStr();
+    instBuffer.push_back(result + " <- load " + inst->getBase()->toStr());
+    // encode the result
+    auto encodeInsts = generateEncodeInstructions(result);
+    instBuffer.insert(instBuffer.end(), encodeInsts.begin(), encodeInsts.end());
   }
-  
-  void visit(const NewArrayInst *inst) {}
-  void visit(const NewTupleInst *inst) {}
+
+  void visit(const NewArrayInst *inst) {
+
+    if (!dynamic_cast<const ArrayType *>(inst->getArray()->getType()))
+      throw runtime_error("Invalid type for NewArrayInst");
+
+    auto array = inst->getArray();
+    auto arrayType = dynamic_cast<const ArrayType *>(array->getType());
+    auto sizes = inst->getSizes();
+
+    // calculate the size of the array: dim# + size1 * size2 * ... * sizeN
+    auto size = varNameGen->next();
+    for (int i = 0; i < sizes.size(); i++) {
+      // decode the size first
+      auto decodedSize = varNameGen->next();
+      auto decodeInsts = generateDecodeInstructions(decodedSize, sizes[i]);
+      instBuffer.insert(instBuffer.end(), decodeInsts.begin(), decodeInsts.end());
+
+      if (i == 0)
+        instBuffer.push_back(size + " <- " + decodedSize);
+      else
+        instBuffer.push_back(size + " <- " + size + " * " + decodedSize);
+    }
+    instBuffer.push_back(size + " <- " + size + " + " + to_string(arrayType->getDim()));
+    auto encodeInsts = generateEncodeInstructions(size);
+    instBuffer.insert(instBuffer.end(), encodeInsts.begin(), encodeInsts.end());
+    // allocate the memory
+    instBuffer.push_back(array->toStr() + " <- call allocate(" + size + ", 1)");
+    // store the size of the array
+    auto sizePtr = varNameGen->next();
+    instBuffer.push_back(sizePtr + " <- " + array->toStr());
+    for (auto size : sizes) {
+      instBuffer.push_back(sizePtr + " <- " + sizePtr + " + 8");
+      instBuffer.push_back("store " + sizePtr + " <- " + size->toStr());
+    }
+  }
+
+  void visit(const NewTupleInst *inst) {
+    auto tuple = inst->getTuple();
+    auto size = inst->getSize();
+    // allocate the memory
+    instBuffer.push_back(tuple->toStr() + " <- call allocate(" + size->toStr() + ", 1)");
+  }
 
   void visit(const RetInst *inst) { instBuffer.push_back("return"); }
 
   void visit(const RetValueInst *inst) { instBuffer.push_back("return " + inst->getValue()->toStr()); }
 
-  void visit(const LabelInst *inst) { instBuffer.push_back(inst->getLabel()->toStr()); }
+  void visit(const LabelInst *inst) {
+    debug("parsing label: " + inst->toStr());
+    instBuffer.push_back(inst->getLabel()->toStr());
+  }
 
   void visit(const BranchInst *inst) { instBuffer.push_back("br " + inst->getLabel()->toStr()); }
 
@@ -208,6 +275,8 @@ class L3CodeGenerator : public Visitor {
     instructions.insert(instructions.end(), instBuffer.begin(), instBuffer.end());
   }
 
+  const vector<string> &getInstructions() const { return instructions; }
+
   L3CodeGenerator(Function *F) {
     instructions = {};
     instBuffer = {};
@@ -225,24 +294,19 @@ void generate_code(Program *P) {
   outputFile.open("prog.L3");
 
   for (auto F : P->getFunctions()) {
-    auto codeGen = GlobalVarNameGenerator(F);
+    L3CodeGenerator codeGen(F);
     auto paramSize = (int)F->getParams()->getParams().size();
     auto &paramList = F->getParams()->getParams();
-    outputFile << "  (" << F->getName() << " " << F->getParams()->getParams().size() << endl;
+    outputFile << "define " << F->getName() << "(" << F->getParams()->toStr() << ") {" << endl;
 
-    for (int i {} i < min(6, paramSize); i++)
-      outputFile << "    " << paramList[i]->toStr() << " <- " << argRegs[i] << endl;
-    for (int i = 6; i < paramSize; i++) {
-      auto stackLoc = to_string(8 * (paramSize - i - 1));
-      outputFile << "    " << paramList[i]->toStr() << " <- stack-arg " << stackLoc << endl;
-    }
+    for (auto BB : F->getBasicBlocks())
+      for (auto I : BB->getInstructions())
+        codeGen.doVisit(I);
 
-    auto &funcResult = result.at(F);
-    auto &instructions = funcResult.assembleCode();
-    for (const string &I : instructions)
-      outputFile << "    " << I << endl;
+    for (auto inst : codeGen.getInstructions())
+      outputFile << "  " << inst << endl;
 
-    outputFile << "  )" << endl;
+    outputFile << "}" << endl;
   }
 }
 } // namespace IR

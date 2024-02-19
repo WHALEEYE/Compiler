@@ -10,6 +10,7 @@ namespace IR {
 
 class Visitor;
 class Value;
+class Function;
 
 class Item {
 public:
@@ -390,16 +391,16 @@ private:
 
 class NewTupleInst : public Instruction {
 public:
-  NewTupleInst(const Variable *tuple, int64_t size);
+  NewTupleInst(const Variable *tuple, const Value *size);
 
   const Variable *getTuple() const;
-  int64_t getSize() const;
+  const Value *getSize() const;
   std::string toStr() const override;
   void accept(Visitor &visitor) const override;
 
 private:
   const Variable *tuple;
-  const int64_t size;
+  const Value *size;
 };
 
 class RetInst : public Instruction {
@@ -505,6 +506,8 @@ private:
   std::vector<const Instruction *> instructions;
   std::unordered_set<BasicBlock *> predecessors;
   std::unordered_set<BasicBlock *> successors;
+
+  friend void cleanUnusedBranches(Function *F);
 };
 
 class Function {

@@ -50,8 +50,8 @@ string ArrayType::toStr() const {
 }
 void ArrayType::accept(Visitor &visitor) const { visitor.visit(this); }
 
-TupleType* TupleType::instance = new TupleType();
-TupleType* TupleType::getInstance() { return instance; }
+TupleType *TupleType::instance = new TupleType();
+TupleType *TupleType::getInstance() { return instance; }
 string TupleType::toStr() const { return "tuple"; }
 void TupleType::accept(Visitor &visitor) const { visitor.visit(this); }
 
@@ -220,18 +220,17 @@ const Variable *NewArrayInst::getArray() const { return array; }
 const vector<const Value *> &NewArrayInst::getSizes() const { return sizes; }
 string NewArrayInst::toStr() const {
   string str = array->toStr() + " <- new Array(";
-  auto sizes = ((ArrayType *)array->getType())->getSizes();
   for (auto size : sizes)
     str += size->toStr() + ", ";
   return str.substr(0, str.size() - 2) + ")";
 }
 void NewArrayInst::accept(Visitor &visitor) const { visitor.visit(this); }
 
-NewTupleInst::NewTupleInst(const Variable *tuple, int64_t size) : tuple(tuple), size(size) {}
+NewTupleInst::NewTupleInst(const Variable *tuple, const Value *size) : tuple(tuple), size(size) {}
 const Variable *NewTupleInst::getTuple() const { return tuple; }
-int64_t NewTupleInst::getSize() const { return size; }
+const Value *NewTupleInst::getSize() const { return size; }
 string NewTupleInst::toStr() const {
-  string str = tuple->toStr() + " <- new Tuple(" + to_string(size) + ")";
+  string str = tuple->toStr() + " <- new Tuple(" + size->toStr() + ")";
   return str;
 }
 void NewTupleInst::accept(Visitor &visitor) const { visitor.visit(this); }
@@ -260,7 +259,8 @@ const Value *CondBranchInst::getCondition() const { return condition; }
 const Label *CondBranchInst::getTrueLabel() const { return trueLabel; }
 const Label *CondBranchInst::getFalseLabel() const { return falseLabel; }
 string CondBranchInst::toStr() const {
-  return "br " + condition->toStr() + " " + trueLabel->toStr() + " " + falseLabel->toStr();
+  return "br " + condition->toStr() + " " + (trueLabel == nullptr ? "<eliminated>" : trueLabel->toStr()) + " " +
+         (falseLabel == nullptr ?  "<eliminated>" : falseLabel->toStr());
 }
 void CondBranchInst::accept(Visitor &visitor) const { visitor.visit(this); }
 

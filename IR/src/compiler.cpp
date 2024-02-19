@@ -72,6 +72,7 @@ int main(int argc, char **argv) {
    * Generate the target code.
    */
   if (enableCodeGenerator) {
+    generate_code(P);
   }
 
   return 0;

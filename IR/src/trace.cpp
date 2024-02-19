@@ -142,6 +142,46 @@ BasicBlock *selectNextBB(const Edges &edges, const unordered_set<BasicBlock *> &
   return next;
 }
 
+void cleanUnusedBranches(Function *F) {
+  auto &basicBlocks = F->getBasicBlocks();
+  for (int i = 0; i < basicBlocks.size() - 1; i++) {
+    auto BB = basicBlocks[i];
+    auto nextBB = basicBlocks[i + 1];
+    // check the last inst of BB
+    auto terminator = BB->getTerminator();
+    // if is a return, continue
+    if (dynamic_cast<const RetInst *>(terminator) || dynamic_cast<const RetValueInst *>(terminator))
+      continue;
+
+    // get the label of next BB
+    if (!dynamic_cast<const LabelInst *>(nextBB->getFirstInstruction()))
+      throw runtime_error("corrupted Basic Block (not starting with label): " + nextBB->toStr());
+
+    auto lebelInst = dynamic_cast<const LabelInst *>(nextBB->getFirstInstruction());
+    auto nextLabel = lebelInst->getLabel();
+
+    if (auto branchInst = dynamic_cast<const BranchInst *>(terminator)) {
+      // check the label of the branch, if is the next BB, pop the branch
+      if (branchInst->getLabel() == nextLabel)
+        BB->instructions.pop_back();
+    } else if (auto condBranchInst = dynamic_cast<const CondBranchInst *>(terminator)) {
+      // if the true or false label is not the next BB, continue
+      if (condBranchInst->getTrueLabel() != nextLabel && condBranchInst->getFalseLabel() != nextLabel)
+        continue;
+      BB->instructions.pop_back();
+      const Label *newTrueLabel = condBranchInst->getTrueLabel(), *newFalseLabel = condBranchInst->getFalseLabel();
+      // if the true label is the next BB, change the condition
+      if (condBranchInst->getTrueLabel() == nextLabel)
+        newTrueLabel = nullptr;
+      if (condBranchInst->getFalseLabel() == nextLabel)
+        newFalseLabel = nullptr;
+
+      BB->instructions.push_back(new CondBranchInst(condBranchInst->getCondition(), newTrueLabel, newFalseLabel));
+    } else
+      throw runtime_error("unknown terminator: " + terminator->toStr());
+  }
+}
+
 void rearrangeBBs(Function *F) {
   vector<BasicBlock *> newBBs, oldBBs = F->getBasicBlocks();
   unordered_set<BasicBlock *> seen;
@@ -149,15 +189,10 @@ void rearrangeBBs(Function *F) {
   seen.insert(oldBBs.front());
 
   BasicBlock *curr = oldBBs.front();
+  newBBs.push_back(curr);
+  seen.insert(curr);
+
   while (newBBs.size() < oldBBs.size()) {
-    if (!curr)
-      curr = selectNextBB(edges, seen);
-    if (!curr)
-      throw runtime_error("No more BBs to add");
-
-    newBBs.push_back(curr);
-    seen.insert(curr);
-
     int64_t maxProfit = -1;
     BasicBlock *maxSucc = nullptr;
     for (auto succ : curr->getSuccessors()) {
@@ -170,9 +205,18 @@ void rearrangeBBs(Function *F) {
       }
     }
     curr = maxSucc;
+
+    if (!curr)
+      curr = selectNextBB(edges, seen);
+    if (!curr)
+      throw runtime_error("No more BBs to add");
+
+    newBBs.push_back(curr);
+    seen.insert(curr);
   }
 
   F->basicBlocks = newBBs;
+  cleanUnusedBranches(F);
 }
 
 } // namespace IR
