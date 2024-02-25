@@ -23,7 +23,8 @@ public:
   int64_t getProfit(const BasicBlock *from, const BasicBlock *to) const {
     auto edge = getEdge(from, to);
     if (!edge)
-      throw runtime_error("Edge not found");
+      return -1;
+
     return edge->profit;
   }
 
@@ -34,15 +35,14 @@ public:
 
   bool profitable(const BasicBlock *from, const BasicBlock *to, const unordered_set<BasicBlock *> &seen) const {
     int64_t profit = getProfit(from, to);
-    int64_t maxProfit = 0;
 
     for (auto pred : to->getPredecessors()) {
       if (seen.find(pred) != seen.end())
         continue;
-      maxProfit = max(maxProfit, getProfit(pred, to));
+      if (getProfit(pred, to) > profit)
+        return false;
     }
-
-    return profit >= maxProfit;
+    return true;
   }
 
   void finalize() {
