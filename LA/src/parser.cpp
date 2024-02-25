@@ -1,3 +1,4 @@
+#include "tao/pegtl/rules.hpp"
 #include <iostream>
 #include <stdexcept>
 #include <vector>
@@ -5,13 +6,13 @@
 #include <tao/pegtl.hpp>
 #include <tao/pegtl/contrib/analyze.hpp>
 
-#include <IR.h>
+#include <LA.h>
 #include <helper.h>
 #include <parser.h>
 
 using namespace TAO_PEGTL_NAMESPACE;
 
-namespace IR {
+namespace LA {
 
 // clang-format off
 class ItemStack {
@@ -65,16 +66,13 @@ struct ret : TAO_PEGTL_STRING("return") {};
 struct arrow : TAO_PEGTL_STRING("<-") {};
 // ") <- this is used to fix the colorization
 
-struct def : TAO_PEGTL_STRING("define") {};
-
 struct less_than : one<'<'> {};
 struct less_equal : TAO_PEGTL_STRING("<=") {};
 struct equal : one<'='> {};
 struct greater_equal : TAO_PEGTL_STRING(">=") {};
 struct greater_than : one<'>'> {};
-
-struct ls_op : TAO_PEGTL_STRING("<<") {};
-struct rs_op : TAO_PEGTL_STRING(">>") {};
+struct left_shift : TAO_PEGTL_STRING("<<") {};
+struct right_shift : TAO_PEGTL_STRING(">>") {};
 struct add_op : one<'+'> {};
 struct sub_op : one<'-'> {};
 struct mul_op : one<'*'> {};
@@ -90,8 +88,6 @@ struct closed_sq_bra: TAO_PEGTL_STRING("[]") {};
 
 struct print : TAO_PEGTL_STRING("print") {};
 struct input : TAO_PEGTL_STRING("input") {};
-struct tuple_error : TAO_PEGTL_STRING("tuple-error") {};
-struct tensor_error : TAO_PEGTL_STRING("tensor-error") {};
 
 struct br : TAO_PEGTL_STRING("br") {};
 
@@ -110,38 +106,19 @@ struct length_str : TAO_PEGTL_STRING("length") {};
 // N ::= (+|-)?[1-9][0-9]* | 0
 struct N : seq<opt<sor<one<'-'>, one<'+'>>>, plus<digit>> {};
 
-// label ::= name
-struct label : seq<one<':'>, name> {};
-
-// I ::= @name    # function names
-struct I : seq<one<'@'>, name> {};
-struct func : I {};
-
-// var ::= %name
-struct var : seq<one<'%'>, name> {};
-struct dec_var : var {};
-struct mem_var : var {};
+// label ::= :name
+struct lbl_name : name {};
+struct label : seq<one<':'>, lbl_name> {};
 
 /*
  * Combined rules.
  */
-// cmp ::= <= | < | = | >= | >
-struct cmp : sor<less_equal, less_than, equal, greater_equal, greater_than> {};
 
-// op ::= + | - | * | & | << | >>
-struct op : sor<add_op, sub_op, mul_op, and_op, ls_op, rs_op> {};
+// op ::= + | - | * | & | << | >> | <= | < | = | >= | >
+struct op : sor<add_op, sub_op, mul_op, and_op, left_shift, right_shift, less_equal, less_than, equal, greater_equal, greater_than> {};
 
-// u ::= var | I
-struct u : sor<var, I> {};
-
-// t ::= var | N    # right value in arithmetic instructions
-struct t : sor<var, N> {};
-
-// s ::= t | label | I    # can be used as right value in assignment instructions
-struct s : sor<t, I> {};
-
-// callee ::= u | print | input | tuple-error | tensor-error
-struct callee : sor<u, print, input, tuple_error, tensor_error> {};
+// t ::= name | N    # right value in arithmetic instructions
+struct t : sor<name, N> {};
 
 // type ::= int64([])+ | int64 | tuple | code
 struct type : sor<seq<at<seq<int64_arr_str, plus<closed_sq_bra>>>, seq<int64_arr_str, plus<closed_sq_bra>>>, 
@@ -152,44 +129,44 @@ struct type : sor<seq<at<seq<int64_arr_str, plus<closed_sq_bra>>>, seq<int64_arr
 // T ::= type | void
 struct T : sor<type, void_str> {};
 
-// type_decl ::= type var
-struct type_decl : seq<type, spaces, dec_var> {};
+// var_decl ::= type name
+struct declared_var : name {};
+struct var_decl : seq<type, spaces, declared_var> {};
 
-struct arr_index : seq<left_sq_bra, spaces, t, spaces, right_sq_bra> {};
+struct index : seq<left_sq_bra, spaces, t, spaces, right_sq_bra> {};
 
-// mem_loc ::= var([t])+
-struct mem_loc : seq<mem_var, plus<arr_index>> {};
+// mem_loc ::= name([t])+
+struct mem_name : name {};
+struct mem_loc : seq<mem_name, plus<index>> {};
 
 // args ::= t(, t)*
 struct args : list<t, comma> {};
 struct argument_list: seq<left_par, spaces, opt<args>, spaces, right_par> {};
 
-// vars ::= type var(, type var)*
-struct vars : list<type_decl, comma> {};
-struct parameter_list : seq<left_par, spaces, opt<vars>, spaces, right_par> {};
+// var_decls ::= type name(, type name)*
+struct var_decls : list<var_decl, comma> {};
+struct parameter_list : seq<left_par, spaces, opt<var_decls>, spaces, right_par> {};
 
 /*
 * Instructions.
 */
-struct decl_inst : type_decl {};
+struct decl_inst : var_decl {};
 
-struct comp_inst : seq<var, spaces, arrow, spaces, t, spaces, cmp, spaces, t> {};
+struct op_inst : seq<name, spaces, arrow, spaces, t, spaces, op, spaces, t> {};
 
-struct arith_inst : seq<var, spaces, arrow, spaces, t, spaces, op, spaces, t> {};
+struct load_inst : seq<name, spaces, arrow, spaces, mem_loc> {};
 
-struct load_inst : seq<var, spaces, arrow, spaces, mem_loc> {};
+struct store_inst : seq<mem_loc, spaces, arrow, spaces, t> {};
 
-struct store_inst : seq<mem_loc, spaces, arrow, spaces, s> {};
+struct assign_inst: seq<name, spaces, arrow, spaces, t> {};
 
-struct assign_inst: seq<var, spaces, arrow, spaces, s> {};
+struct arr_len_inst : seq<name, spaces, arrow, spaces, length_str, spaces, name, spaces, t> {};
 
-struct arr_len_inst : seq<var, spaces, arrow, spaces, length_str, spaces, var, spaces, t> {};
+struct tup_len_inst : seq<name, spaces, arrow, spaces, length_str, spaces, name> {};
 
-struct tup_len_inst : seq<var, spaces, arrow, spaces, length_str, spaces, var> {};
+struct new_arr_inst : seq<name, spaces, arrow, spaces, new_str, spaces, arr_str, spaces, left_par, spaces, args, spaces, right_par> {};
 
-struct new_arr_inst : seq<var, spaces, arrow, spaces, new_str, spaces, arr_str, spaces, left_par, spaces, args, spaces, right_par> {};
-
-struct new_tup_inst : seq<var, spaces, arrow, spaces, new_str, spaces, tup_str, spaces, left_par, spaces, t, spaces, right_par> {};
+struct new_tup_inst : seq<name, spaces, arrow, spaces, new_str, spaces, tup_str, spaces, left_par, spaces, t, spaces, right_par> {};
 
 struct ret_val_inst : seq<ret, spaces, t> {};
 
@@ -201,57 +178,51 @@ struct branch_inst : seq<br, spaces, label> {};
 
 struct cond_branch_inst : seq<br, spaces, t, spaces, label, spaces, label> {};
 
-struct call_inst : seq<call, spaces, callee, spaces, argument_list> {};
+struct runtime_func_call : seq<sor<print, input>, spaces, argument_list> {};
+struct user_funcs : name {};
+struct user_func_call : seq<user_funcs, spaces, argument_list> {};
+struct call_inst : sor<
+                        seq<at<runtime_func_call>, runtime_func_call>,
+                        seq<at<user_func_call>, user_func_call>
+                      > {};
 
-struct call_assign_inst : seq<var, spaces, arrow, spaces, call, spaces, callee, spaces, argument_list> {};
+struct func_call : call_inst {};
+struct call_assign_inst : seq<name, spaces, arrow, spaces, func_call> {};
 
 struct i : sor<
               seq<at<decl_inst>, decl_inst>,
-              seq<at<comp_inst>, comp_inst>,
-              seq<at<arith_inst>, arith_inst>,
+              seq<at<op_inst>, op_inst>,
               seq<at<load_inst>, load_inst>,
               seq<at<store_inst>, store_inst>,
-              seq<at<assign_inst>, assign_inst>,
+              seq<at<call_inst>, call_inst>,
+              seq<at<call_assign_inst>, call_assign_inst>,
               seq<at<arr_len_inst>, arr_len_inst>,
               seq<at<tup_len_inst>, tup_len_inst>,
               seq<at<new_arr_inst>, new_arr_inst>,
               seq<at<new_tup_inst>, new_tup_inst>,
-              seq<at<call_inst>, call_inst>,
-              seq<at<call_assign_inst>, call_assign_inst>,
-              seq<at<comment>, comment>
-            > {};
-
-struct te : sor<
+              seq<at<assign_inst>, assign_inst>,
+              seq<at<comment>, comment>,
               seq<at<branch_inst>, branch_inst>,
               seq<at<cond_branch_inst>, cond_branch_inst>,
               seq<at<ret_val_inst>, ret_val_inst>,
-              seq<at<ret_inst>, ret_inst>
+              seq<at<ret_inst>, ret_inst>,
+              seq<at<label_inst>, label_inst>
             > {};
 
 struct instructions : star<seq<seps, bol, spaces, i, seps>> {};
 
-struct bb : seq<
-              bol, spaces, label_inst, 
-              seps_with_comments,
-              instructions,
-              seps_with_comments,
-              bol, spaces, te
-            > {};
-
-struct bbs : plus<seq<seps_with_comments, bb, seps_with_comments>> {};
+struct func_def_name : name {};
 
 struct function : seq<
-                    seq<spaces, def>,
-                    seps_with_comments,
                     seq<spaces, T>,
                     seps_with_comments,
-                    seq<spaces, func>,
+                    seq<spaces, func_def_name>,
                     seps_with_comments,
                     seq<spaces, parameter_list>,
                     seps_with_comments,
                     seq<spaces, one<'{'>>,
                     seps_with_comments,
-                    bbs,
+                    instructions,
                     seps_with_comments,
                     seq<spaces, one<'}'>>
                   > {};
@@ -266,17 +237,9 @@ struct grammar : must<entry_point> {};
  */
 template <typename Rule> struct action : nothing<Rule> {};
 
-template <> struct action<def> {
-  template <typename Input> static void apply(const Input &in, Program &P) {
-    auto F = new Function();
-    P.addFunction(F);
-    debug("parsed function definition");
-  }
-};
-
 template <> struct action<less_than> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto op = CompareOp::getCompareOp(CompareOp::ID::LESS_THAN);
+    auto op = Operator::getOperator(Operator::ID::LESS_THAN);
     itemStack.push(op);
     debug("parsed less than operator");
   }
@@ -284,7 +247,7 @@ template <> struct action<less_than> {
 
 template <> struct action<less_equal> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto op = CompareOp::getCompareOp(CompareOp::ID::LESS_EQUAL);
+    auto op = Operator::getOperator(Operator::ID::LESS_EQUAL);
     itemStack.push(op);
     debug("parsed less equal operator");
   }
@@ -292,7 +255,7 @@ template <> struct action<less_equal> {
 
 template <> struct action<equal> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto op = CompareOp::getCompareOp(CompareOp::ID::EQUAL);
+    auto op = Operator::getOperator(Operator::ID::EQUAL);
     itemStack.push(op);
     debug("parsed equal operator");
   }
@@ -300,7 +263,7 @@ template <> struct action<equal> {
 
 template <> struct action<greater_equal> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto op = CompareOp::getCompareOp(CompareOp::ID::GREATER_EQUAL);
+    auto op = Operator::getOperator(Operator::ID::GREATER_EQUAL);
     itemStack.push(op);
     debug("parsed greater equal operator");
   }
@@ -308,23 +271,23 @@ template <> struct action<greater_equal> {
 
 template <> struct action<greater_than> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto op = CompareOp::getCompareOp(CompareOp::ID::GREATER_THAN);
+    auto op = Operator::getOperator(Operator::ID::GREATER_THAN);
     itemStack.push(op);
     debug("parsed greater than operator");
   }
 };
 
-template <> struct action<ls_op> {
+template <> struct action<left_shift> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto op = ArithOp::getArithOp(ArithOp::ID::LS);
+    auto op = Operator::getOperator(Operator::ID::LS);
     itemStack.push(op);
     debug("parsed left shift operator");
   }
 };
 
-template <> struct action<rs_op> {
+template <> struct action<right_shift> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto op = ArithOp::getArithOp(ArithOp::ID::RS);
+    auto op = Operator::getOperator(Operator::ID::RS);
     itemStack.push(op);
     debug("parsed right shift operator");
   }
@@ -332,7 +295,7 @@ template <> struct action<rs_op> {
 
 template <> struct action<add_op> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto op = ArithOp::getArithOp(ArithOp::ID::ADD);
+    auto op = Operator::getOperator(Operator::ID::ADD);
     itemStack.push(op);
     debug("parsed add operator");
   }
@@ -340,7 +303,7 @@ template <> struct action<add_op> {
 
 template <> struct action<sub_op> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto op = ArithOp::getArithOp(ArithOp::ID::SUB);
+    auto op = Operator::getOperator(Operator::ID::SUB);
     itemStack.push(op);
     debug("parsed sub operator");
   }
@@ -348,7 +311,7 @@ template <> struct action<sub_op> {
 
 template <> struct action<mul_op> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto op = ArithOp::getArithOp(ArithOp::ID::MUL);
+    auto op = Operator::getOperator(Operator::ID::MUL);
     itemStack.push(op);
     debug("parsed multiplication operator");
   }
@@ -356,7 +319,7 @@ template <> struct action<mul_op> {
 
 template <> struct action<and_op> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto op = ArithOp::getArithOp(ArithOp::ID::AND);
+    auto op = Operator::getOperator(Operator::ID::AND);
     itemStack.push(op);
     debug("parsed and operator");
   }
@@ -400,22 +363,6 @@ template <> struct action<input> {
   }
 };
 
-template <> struct action<tuple_error> {
-  template <typename Input> static void apply(const Input &in, Program &P) {
-    auto callee = RuntimeFunction::getRuntimeFunction(RuntimeFunction::ID::TUPLE_ERROR);
-    itemStack.push(callee);
-    debug("parsed runtime function " + callee->toStr());
-  }
-};
-
-template <> struct action<tensor_error> {
-  template <typename Input> static void apply(const Input &in, Program &P) {
-    auto callee = RuntimeFunction::getRuntimeFunction(RuntimeFunction::ID::TENSOR_ERROR);
-    itemStack.push(callee);
-    debug("parsed runtime function " + callee->toStr());
-  }
-};
-
 template <> struct action<int64_arr_str> {
   template <typename Input> static void apply(const Input &in, Program &P) {
     auto arrType = new ArrayType();
@@ -454,9 +401,10 @@ template <> struct action<void_str> {
 
 template <> struct action<T> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto F = P.getCurrFunction();
-    auto type = (Type *)itemStack.pop();
+    auto F = new Function();
+    auto type = (VarType *)itemStack.pop();
     F->setReturnType(type);
+    P.addFunction(F);
     debug("parsed function return type " + type->toStr());
   }
 };
@@ -471,21 +419,28 @@ template <> struct action<N> {
 
 template <> struct action<label> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto l = P.getLabel(in.string());
+    auto l = P.getLabelInCurrFunc(in.string());
     itemStack.push(l);
     debug("parsed label " + l->getName());
   }
 };
 
-template <> struct action<I> {
+template <> struct action<user_funcs> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto n = new FunctionName(in.string());
-    itemStack.push(n);
-    debug("parsed function name " + n->getName());
+    auto name = in.string();
+    Name *callee;
+
+    if (P.currFuncHasVariable(name))
+      callee = P.getVariableInCurrFunc(name);
+    else
+      callee = new UserFunction(name);
+
+    itemStack.push(callee);
+    debug("parsed function name " + callee->toStr());
   }
 };
 
-template <> struct action<func> {
+template <> struct action<func_def_name> {
   template <typename Input> static void apply(const Input &in, Program &P) {
     auto F = P.getCurrFunction();
     F->setName(in.string());
@@ -493,35 +448,40 @@ template <> struct action<func> {
   }
 };
 
-template <> struct action<var> {
+template <> struct action<name> {
   template <typename Input> static void apply(const Input &in, Program &P) {
     auto F = P.getCurrFunction();
-    auto var = P.getVariable(in.string());
-    itemStack.push(var);
-    debug("parsed variable " + var->toStr());
+    Name *name;
+    auto nameStr = in.string();
+    if (P.currFuncHasVariable(nameStr))
+      name = P.getVariableInCurrFunc(nameStr);
+    else
+      name = new UserFunction(nameStr);
+    itemStack.push(name);
+    debug("parsed name " + name->toStr());
   }
 };
 
-template <> struct action<dec_var> {
+template <> struct action<declared_var> {
   template <typename Input> static void apply(const Input &in, Program &P) {
     auto name = in.string();
-    auto type = (const Type *)itemStack.pop();
-    P.defineVariable(name, type);
-    itemStack.push(P.getVariable(name));
-    debug("parsed variable declaration " + type->toStr() + " " + name);
+    auto type = (const VarType *)itemStack.pop();
+    P.declareVariableInCurrFunc(name, type);
+    itemStack.push(P.getVariableInCurrFunc(name));
+    debug("parsed declared variable " + type->toStr() + " " + name);
   }
 };
 
-template <> struct action<mem_var> {
+template <> struct action<mem_name> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto base = P.getVariable(in.string());
+    auto base = P.getVariableInCurrFunc(in.string());
     auto memoryLocation = new MemoryLocation(base);
     itemStack.push(memoryLocation);
     debug("parsed memory variable " + memoryLocation->toStr());
   }
 };
 
-template <> struct action<arr_index> {
+template <> struct action<index> {
   template <typename Input> static void apply(const Input &in, Program &P) {
     auto index = (Value *)itemStack.pop();
     auto memLoc = (MemoryLocation *)itemStack.top();
@@ -560,7 +520,7 @@ template <> struct action<parameter_list> {
       if (curr == LeftParen::getInstance())
         break;
 
-      params->addParamToHead((const Variable *)curr);
+      params->addParamToHead((Variable *)curr);
     }
     auto F = P.getCurrFunction();
     F->setParams(params);
@@ -570,53 +530,41 @@ template <> struct action<parameter_list> {
 
 template <> struct action<decl_inst> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto var = (const Variable *)itemStack.pop();
+    auto var = (Variable *)itemStack.pop();
     auto I = new DeclarationInst(var);
-    P.addInstruction(I);
-    debug("parsed type declaration " + I->toStr());
+    P.addInstructionToCurrFunc(I, in.position().line);
+    debug("parsed declaration instruction " + I->toStr());
   }
 };
 
 template <> struct action<assign_inst> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto rval = itemStack.pop();
-    auto lval = (const Variable *)itemStack.pop();
+    auto rval = (Value *)itemStack.pop();
+    auto lval = (Variable *)itemStack.pop();
     auto I = new AssignInst(lval, rval);
-    P.addInstruction(I);
+    P.addInstructionToCurrFunc(I, in.position().line);
     debug("parsed assignment instruction " + I->toStr());
   }
 };
 
-template <> struct action<arith_inst> {
+template <> struct action<op_inst> {
   template <typename Input> static void apply(const Input &in, Program &P) {
     auto arithRval = (const Value *)itemStack.pop();
-    auto op = (const ArithOp *)itemStack.pop();
+    auto op = (const Operator *)itemStack.pop();
     auto arithLval = (const Value *)itemStack.pop();
-    auto lval = (const Variable *)itemStack.pop();
-    auto I = new ArithInst(lval, arithLval, op, arithRval);
-    P.addInstruction(I);
+    auto lval = (Variable *)itemStack.pop();
+    auto I = new OpInst(lval, arithLval, op, arithRval);
+    P.addInstructionToCurrFunc(I, in.position().line);
     debug("parsed arithmetic instruction " + I->toStr());
-  }
-};
-
-template <> struct action<comp_inst> {
-  template <typename Input> static void apply(const Input &in, Program &P) {
-    auto compRval = (const Value *)itemStack.pop();
-    auto cmp = (const CompareOp *)itemStack.pop();
-    auto compLval = (const Value *)itemStack.pop();
-    auto lval = (const Variable *)itemStack.pop();
-    auto I = new CompareInst(lval, compLval, cmp, compRval);
-    P.addInstruction(I);
-    debug("parsed comparison instruction " + I->toStr());
   }
 };
 
 template <> struct action<load_inst> {
   template <typename Input> static void apply(const Input &in, Program &P) {
     auto memLoc = (const MemoryLocation *)itemStack.pop();
-    auto target = (const Variable *)itemStack.pop();
+    auto target = (Variable *)itemStack.pop();
     auto I = new LoadInst(target, memLoc);
-    P.addInstruction(I);
+    P.addInstructionToCurrFunc(I, in.position().line);
     debug("parsed load instruction " + I->toStr());
   }
 };
@@ -626,7 +574,7 @@ template <> struct action<store_inst> {
     auto source = (const Value *)itemStack.pop();
     auto memLoc = (const MemoryLocation *)itemStack.pop();
     auto I = new StoreInst(memLoc, source);
-    P.addInstruction(I);
+    P.addInstructionToCurrFunc(I, in.position().line);
     debug("parsed store instruction " + I->toStr());
   }
 };
@@ -634,20 +582,20 @@ template <> struct action<store_inst> {
 template <> struct action<arr_len_inst> {
   template <typename Input> static void apply(const Input &in, Program &P) {
     auto dimIndex = (const Value *)itemStack.pop();
-    auto base = (const Variable *)itemStack.pop();
-    auto result = (const Variable *)itemStack.pop();
+    auto base = (Variable *)itemStack.pop();
+    auto result = (Variable *)itemStack.pop();
     auto I = new ArrayLenInst(result, base, dimIndex);
-    P.addInstruction(I);
+    P.addInstructionToCurrFunc(I, in.position().line);
     debug("parsed array length instruction " + I->toStr());
   }
 };
 
 template <> struct action<tup_len_inst> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto base = (const Variable *)itemStack.pop();
-    auto result = (const Variable *)itemStack.pop();
+    auto base = (Variable *)itemStack.pop();
+    auto result = (Variable *)itemStack.pop();
     auto I = new TupleLenInst(result, base);
-    P.addInstruction(I);
+    P.addInstructionToCurrFunc(I, in.position().line);
     debug("parsed tuple length instruction " + I->toStr());
   }
 };
@@ -668,7 +616,7 @@ template <> struct action<new_arr_inst> {
 
     auto array = (Variable *)itemStack.pop();
     auto I = new NewArrayInst(array, sizes);
-    P.addInstruction(I);
+    P.addInstructionToCurrFunc(I, in.position().line);
     debug("parsed new array instruction " + I->toStr());
   }
 };
@@ -678,9 +626,9 @@ template <> struct action<new_tup_inst> {
     itemStack.pop();
     auto size = (const Value *)itemStack.pop();
     itemStack.pop();
-    auto tuple = (const Variable *)itemStack.pop();
+    auto tuple = (Variable *)itemStack.pop();
     auto I = new NewTupleInst(tuple, size);
-    P.addInstruction(I);
+    P.addInstructionToCurrFunc(I, in.position().line);
     debug("parsed new tuple instruction " + I->toStr());
   }
 };
@@ -688,7 +636,9 @@ template <> struct action<new_tup_inst> {
 template <> struct action<ret_inst> {
   template <typename Input> static void apply(const Input &in, Program &P) {
     auto I = new RetInst();
-    P.addInstruction(I);
+    auto currBB = P.getCurrFunction()->getCurrBasicBlock();
+    currBB->setTerminator(I);
+    P.newBasicBlock();
     debug("parsed return instruction " + I->toStr());
   }
 };
@@ -698,18 +648,19 @@ template <> struct action<ret_val_inst> {
     debug("parsed return value instruction");
     auto rval = (const Value *)itemStack.pop();
     auto I = new RetValueInst(rval);
-    P.addInstruction(I);
+    auto currBB = P.getCurrFunction()->getCurrBasicBlock();
+    currBB->setTerminator(I);
+    P.newBasicBlock();
     debug("parsed return value instruction " + I->toStr());
   }
 };
 
 template <> struct action<label_inst> {
   template <typename Input> static void apply(const Input &in, Program &P) {
-    auto label = P.getLabel(in.string());
-    auto I = new LabelInst(label);
-    P.newBasicBlock();
-    P.addInstruction(I);
-    debug("parsed label instruction " + I->toStr());
+    auto label = P.getLabelInCurrFunc(in.string());
+    auto currBB = P.newBasicBlock();
+    currBB->setLabel(label);
+    debug("parsed label instruction " + label->toStr());
   }
 };
 
@@ -717,7 +668,9 @@ template <> struct action<branch_inst> {
   template <typename Input> static void apply(const Input &in, Program &P) {
     auto label = (const Label *)itemStack.pop();
     auto I = new BranchInst(label);
-    P.addInstruction(I);
+    auto currBB = P.getCurrFunction()->getCurrBasicBlock();
+    currBB->setTerminator(I);
+    P.newBasicBlock();
     debug("parsed branch instruction " + I->toStr());
   }
 };
@@ -728,7 +681,9 @@ template <> struct action<cond_branch_inst> {
     auto trueLabel = (const Label *)itemStack.pop();
     auto condition = (const Value *)itemStack.pop();
     auto I = new CondBranchInst(condition, trueLabel, falseLabel);
-    P.addInstruction(I);
+    auto currBB = P.getCurrFunction()->getCurrBasicBlock();
+    currBB->setTerminator(I);
+    P.newBasicBlock();
     debug("parsed conditional branch instruction " + I->toStr());
   }
 };
@@ -736,9 +691,9 @@ template <> struct action<cond_branch_inst> {
 template <> struct action<call_inst> {
   template <typename Input> static void apply(const Input &in, Program &P) {
     auto args = (const Arguments *)itemStack.pop();
-    auto callee = itemStack.pop();
+    auto callee = (Name *)itemStack.pop();
     auto I = new CallInst(callee, args);
-    P.addInstruction(I);
+    P.addInstructionToCurrFunc(I, in.position().line);
 
     debug("parsed call instruction " + I->toStr());
   }
@@ -747,42 +702,14 @@ template <> struct action<call_inst> {
 template <> struct action<call_assign_inst> {
   template <typename Input> static void apply(const Input &in, Program &P) {
     auto args = (const Arguments *)itemStack.pop();
-    auto callee = itemStack.pop();
-    auto lval = (const Variable *)itemStack.pop();
+    auto callee = (Name *)itemStack.pop();
+    auto lval = (Variable *)itemStack.pop();
     auto I = new CallAssignInst(lval, callee, args);
-    P.addInstruction(I);
+    P.addInstructionToCurrFunc(I, in.position().line);
 
     debug("parsed call assignment instruction " + I->toStr());
   }
 };
-
-void linkBasicBlocks(Function *F) {
-  debug("Started linking basic blocks for function " + F->getName());
-
-  std::map<std::string, BasicBlock *> labelToBB;
-  // find all basic blocks that starts with a label
-  // these BBs may have predecessors that are not linked yet
-  for (auto &BB : F->getBasicBlocks())
-    if (auto inst = dynamic_cast<const LabelInst *>(BB->getFirstInstruction()))
-      labelToBB[inst->getLabel()->getName()] = BB;
-
-  // link all basic blocks
-  for (auto &BB : F->getBasicBlocks()) {
-    if (auto inst = dynamic_cast<const BranchInst *>(BB->getTerminator())) {
-      auto label = inst->getLabel();
-      auto targetBB = labelToBB[label->getName()];
-      BB->addSuccessor(targetBB);
-      targetBB->addPredecessor(BB);
-    } else if (auto inst = dynamic_cast<const CondBranchInst *>(BB->getTerminator())) {
-      auto labels = {inst->getTrueLabel(), inst->getFalseLabel()};
-      for (auto label : labels) {
-        auto targetBB = labelToBB[label->getName()];
-        BB->addSuccessor(targetBB);
-        targetBB->addPredecessor(BB);
-      }
-    }
-  }
-}
 
 Program *parseFile(char *fileName) {
 
@@ -800,10 +727,7 @@ Program *parseFile(char *fileName) {
   file_input<> fileInput(fileName);
   auto P = new Program();
   parse<grammar, action>(fileInput, *P);
-  for (auto F : P->getFunctions()) {
-    linkBasicBlocks(F);
-  }
   return P;
 }
 
-} // namespace IR
+} // namespace LA

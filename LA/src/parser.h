@@ -1,7 +1,7 @@
 #pragma once
 
-#include <IR.h>
+#include <LA.h>
 
-namespace IR {
+namespace LA {
 Program *parseFile(char *fileName);
-} // namespace IR
+} // namespace LA

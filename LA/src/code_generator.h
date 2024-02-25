@@ -1,9 +1,9 @@
-#include <IR.h>
+#include <LA.h>
 
 using namespace std;
 
-namespace IR {
+namespace LA {
 
 void generate_code(Program *P);
 
-} // namespace IR
+} // namespace LA

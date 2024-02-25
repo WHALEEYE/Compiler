@@ -1,7 +1,7 @@
 #pragma once
 #include <string>
 
-#include <IR.h>
+#include <LA.h>
 
 extern bool debugEnabled;
 

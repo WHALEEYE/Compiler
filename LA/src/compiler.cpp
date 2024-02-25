@@ -4,10 +4,10 @@
 
 using namespace std;
 
+#include <basic_block.h>
 #include <code_generator.h>
 #include <helper.h>
 #include <parser.h>
-#include <trace.h>
 
 void printHelp(char *progName) {
   cerr << "Usage: " << progName << " [-v] [-g 0|1] [-O 0|1|2] [-s] [-l] [-i] [-d] SOURCE" << endl;
@@ -54,19 +54,17 @@ int main(int argc, char **argv) {
   /*
    * Parse the input file.
    */
-  IR::Program *P = IR::parseFile(argv[optind]);
+  LA::Program *P = LA::parseFile(argv[optind]);
 
-  if (verbose) {
-    cout << "before:" << endl;
-    cout << P->toStr();
-  }
+  if (verbose)
+    cout << "before:\n" << P->toStr();
+
   for (auto F : P->getFunctions()) {
-    IR::rearrangeBBs(F);
+    LA::formatBasicBlock(F);
   }
-  if (verbose) {
-    cout << "after:" << endl;
-    cout << P->toStr();
-  }
+
+  if (verbose)
+    cout << "after:\n" << P->toStr();
 
   /*
    * Generate the target code.

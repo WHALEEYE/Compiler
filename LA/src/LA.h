@@ -6,7 +6,7 @@
 #include <unordered_set>
 #include <vector>
 
-namespace IR {
+namespace LA {
 
 class Visitor;
 class Value;
@@ -15,15 +15,19 @@ class Function;
 class Item {
 public:
   virtual std::string toStr() const;
-  virtual void accept(Visitor &visitor) const;
 };
 
-class Type : public Item {};
+class VarType : public Item {
+public:
+  enum Type { INT64, ARRAY, TUPLE, CODE, VOID };
+  virtual Type getType() const = 0;
+};
 
-class Int64Type : public Type {
+class Int64Type : public VarType {
 public:
   std::string toStr() const override;
-  void accept(Visitor &visitor) const override;
+
+  Type getType() const override;
 
   Int64Type(const Int64Type &) = delete;
   Int64Type &operator=(const Int64Type &) = delete;
@@ -34,22 +38,23 @@ private:
   static Int64Type *instance;
 };
 
-class ArrayType : public Type {
+class ArrayType : public VarType {
 public:
   void increaseDim();
   int64_t getDim() const;
+  Type getType() const override;
 
   std::string toStr() const override;
-  void accept(Visitor &visitor) const override;
 
 private:
   int64_t dim;
 };
 
-class TupleType : public Type {
+class TupleType : public VarType {
 public:
   std::string toStr() const override;
-  void accept(Visitor &visitor) const override;
+
+  Type getType() const override;
 
   TupleType(const TupleType &) = delete;
   TupleType &operator=(const TupleType &) = delete;
@@ -60,10 +65,11 @@ private:
   static TupleType *instance;
 };
 
-class CodeType : public Type {
+class CodeType : public VarType {
 public:
   std::string toStr() const override;
-  void accept(Visitor &visitor) const override;
+
+  Type getType() const override;
 
   CodeType(const CodeType &) = delete;
   CodeType &operator=(const CodeType &) = delete;
@@ -75,10 +81,11 @@ private:
   static CodeType *instance;
 };
 
-class VoidType : public Type {
+class VoidType : public VarType {
 public:
   std::string toStr() const override;
-  void accept(Visitor &visitor) const override;
+
+  Type getType() const override;
 
   VoidType(const VoidType &) = delete;
   VoidType &operator=(const VoidType &) = delete;
@@ -91,16 +98,23 @@ private:
 
 class Value : public Item {};
 
-class Variable : public Value {
+class Name : public Value {
 public:
-  Variable(const std::string &name, const Type *type);
+  virtual std::string getPrefixedName() const = 0;
+};
+
+class Variable : public Name {
+public:
+  Variable(const std::string &name, const VarType *varType);
   const std::string &getName() const;
-  const Type *getType() const;
+  const VarType *getVarType() const;
   std::string toStr() const override;
-  void accept(Visitor &visitor) const override;
+
+  std::string getPrefixedName() const override;
+  std::string getDeclStr() const;
 
 private:
-  const Type *type{};
+  const VarType *varType{};
   const std::string name;
 };
 
@@ -108,14 +122,14 @@ class Number : public Value {
 public:
   explicit Number(int64_t val);
   int64_t getValue() const;
+  void setValue(int64_t val);
   std::string toStr() const override;
-  void accept(Visitor &visitor) const override;
 
 private:
   int64_t value;
 };
 
-class MemoryLocation : public Value {
+class MemoryLocation : public Item {
 public:
   MemoryLocation(const Variable *base);
   const Variable *getBase() const;
@@ -123,7 +137,6 @@ public:
   const std::vector<const Value *> &getIndices() const;
 
   std::string toStr() const override;
-  void accept(Visitor &visitor) const override;
 
 private:
   const Variable *base;
@@ -154,7 +167,6 @@ public:
   void addArgToTail(const Value *arg);
   const std::vector<const Value *> &getArgs() const;
   std::string toStr() const override;
-  void accept(Visitor &visitor) const override;
 
 private:
   std::vector<const Value *> args;
@@ -166,56 +178,37 @@ public:
   void addParamToHead(const Variable *param);
   const std::vector<const Variable *> &getParams() const;
   std::string toStr() const override;
-  void accept(Visitor &visitor) const override;
 
 private:
   std::vector<const Variable *> params;
 };
 
-class CompareOp : public Item {
+class Operator : public Item {
 public:
-  enum ID { LESS_THAN, LESS_EQUAL, EQUAL, GREATER_EQUAL, GREATER_THAN };
-  static CompareOp *getCompareOp(ID id);
+  enum ID { ADD, SUB, MUL, AND, LS, RS, LESS_THAN, LESS_EQUAL, EQUAL, GREATER_EQUAL, GREATER_THAN };
+  static Operator *getOperator(ID id);
 
   std::string getName() const;
   ID getID() const;
   std::string toStr() const override;
-  void accept(Visitor &visitor) const override;
 
 private:
-  CompareOp(ID id, std::string name);
-  static const std::unordered_map<ID, CompareOp *> enumMap;
+  Operator(ID id, std::string name);
+  static const std::unordered_map<ID, Operator *> enumMap;
 
   const ID id;
   std::string name;
 };
 
-class ArithOp : public Item {
+class RuntimeFunction : public Name {
 public:
-  enum ID { ADD, SUB, MUL, AND, LS, RS };
-  static ArithOp *getArithOp(ID id);
-
-  std::string getName() const;
-  ID getID() const;
-  std::string toStr() const override;
-  void accept(Visitor &visitor) const override;
-
-private:
-  ArithOp(ID id, std::string name);
-  static const std::unordered_map<ID, ArithOp *> enumMap;
-
-  const ID id;
-  std::string name;
-};
-
-class RuntimeFunction : public Item {
-public:
-  enum ID { PRINT, ALLOCATE, INPUT, TUPLE_ERROR, TENSOR_ERROR };
+  enum ID { PRINT, INPUT };
   static RuntimeFunction *getRuntimeFunction(ID id);
 
   std::string getName() const;
   std::string toStr() const override;
-  void accept(Visitor &visitor) const override;
+
+  std::string getPrefixedName() const override;
 
 private:
   explicit RuntimeFunction(std::string name);
@@ -224,12 +217,13 @@ private:
   std::string name;
 };
 
-class FunctionName : public Item {
+class UserFunction : public Name {
 public:
-  explicit FunctionName(std::string name);
+  explicit UserFunction(std::string name);
   std::string getName() const;
   std::string toStr() const override;
-  void accept(Visitor &visitor) const override;
+
+  std::string getPrefixedName() const override;
 
 private:
   std::string name;
@@ -240,7 +234,6 @@ public:
   explicit Label(std::string name);
   std::string getName() const;
   std::string toStr() const override;
-  void accept(Visitor &visitor) const override;
 
 private:
   std::string name;
@@ -254,7 +247,10 @@ class Instruction {
 public:
   virtual std::string toStr() const = 0;
   virtual void accept(Visitor &visitor) const = 0;
+  int64_t lineno;
 };
+
+class TerminatorInst : public Instruction {};
 
 /*
  * Instructions.
@@ -272,40 +268,23 @@ private:
 
 class AssignInst : public Instruction {
 public:
-  AssignInst(const Variable *lval, const Item *rval);
+  AssignInst(const Variable *lval, const Value *rval);
   const Variable *getLhs() const;
-  const Item *getRhs() const;
+  const Value *getRhs() const;
   std::string toStr() const override;
   void accept(Visitor &visitor) const override;
 
 private:
   const Variable *lhs;
-  const Item *rhs;
-};
-
-class ArithInst : public Instruction {
-public:
-  ArithInst(const Variable *lval, const Value *arithLval, const ArithOp *op, const Value *arithRval);
-  const Variable *getRst() const;
-  const Value *getLhs() const;
-  const ArithOp *getOp() const;
-  const Value *getRhs() const;
-  std::string toStr() const override;
-  void accept(Visitor &visitor) const override;
-
-private:
-  const Variable *rst;
-  const Value *lhs;
-  const ArithOp *op;
   const Value *rhs;
 };
 
-class CompareInst : public Instruction {
+class OpInst : public Instruction {
 public:
-  CompareInst(const Variable *lval, const Value *cmpLval, const CompareOp *op, const Value *cmpRval);
+  OpInst(const Variable *rst, const Value *lhs, const Operator *op, const Value *rhs);
   const Variable *getRst() const;
   const Value *getLhs() const;
-  const CompareOp *getOp() const;
+  const Operator *getOp() const;
   const Value *getRhs() const;
   std::string toStr() const override;
   void accept(Visitor &visitor) const override;
@@ -313,7 +292,7 @@ public:
 private:
   const Variable *rst;
   const Value *lhs;
-  const CompareOp *op;
+  const Operator *op;
   const Value *rhs;
 };
 
@@ -349,7 +328,7 @@ class ArrayLenInst : public Instruction {
 public:
   ArrayLenInst(const Variable *result, const Variable *base, const Value *dimIndex);
   const Variable *getResult() const;
-  const Variable *getBase() const;
+  const Variable *getArray() const;
   const Value *getDimIndex() const;
 
   std::string toStr() const override;
@@ -365,7 +344,7 @@ class TupleLenInst : public Instruction {
 public:
   TupleLenInst(const Variable *result, const Variable *base);
   const Variable *getResult() const;
-  const Variable *getBase() const;
+  const Variable *getTuple() const;
 
   std::string toStr() const override;
   void accept(Visitor &visitor) const override;
@@ -403,13 +382,13 @@ private:
   const Value *size;
 };
 
-class RetInst : public Instruction {
+class RetInst : public TerminatorInst {
 public:
   std::string toStr() const override;
   void accept(Visitor &visitor) const override;
 };
 
-class RetValueInst : public Instruction {
+class RetValueInst : public TerminatorInst {
 public:
   explicit RetValueInst(const Value *value);
   const Value *getValue() const;
@@ -431,7 +410,7 @@ private:
   const Label *label;
 };
 
-class BranchInst : public Instruction {
+class BranchInst : public TerminatorInst {
 public:
   explicit BranchInst(const Label *label);
   const Label *getLabel() const;
@@ -442,7 +421,7 @@ private:
   const Label *label;
 };
 
-class CondBranchInst : public Instruction {
+class CondBranchInst : public TerminatorInst {
 public:
   CondBranchInst(const Value *condition, const Label *trueLabel, const Label *falseLabel);
   const Value *getCondition() const;
@@ -458,29 +437,29 @@ private:
 
 class CallInst : public Instruction {
 public:
-  CallInst(const Item *callee, const Arguments *args);
-  const Item *getCallee() const;
+  CallInst(const Name *callee, const Arguments *args);
+  const Name *getCallee() const;
   const Arguments *getArgs() const;
   std::string toStr() const override;
   void accept(Visitor &visitor) const override;
 
 private:
-  const Item *callee;
+  const Name *callee;
   const Arguments *args;
 };
 
 class CallAssignInst : public Instruction {
 public:
-  CallAssignInst(const Variable *lval, const Item *callee, const Arguments *args);
+  CallAssignInst(const Variable *rst, const Name *callee, const Arguments *args);
   const Variable *getRst() const;
-  const Item *getCallee() const;
+  const Name *getCallee() const;
   const Arguments *getArgs() const;
   std::string toStr() const override;
   void accept(Visitor &visitor) const override;
 
 private:
   const Variable *rst;
-  const Item *callee;
+  const Name *callee;
   const Arguments *args;
 };
 
@@ -489,6 +468,7 @@ private:
  */
 class BasicBlock {
 public:
+  BasicBlock();
   const std::vector<const Instruction *> &getInstructions() const;
   void addInstruction(const Instruction *inst);
   const std::unordered_set<BasicBlock *> &getPredecessors() const;
@@ -497,18 +477,27 @@ public:
   const std::unordered_set<BasicBlock *> &getSuccessors() const;
   void addSuccessor(BasicBlock *BB);
   void removeSuccessor(BasicBlock *BB);
-  const Instruction *getFirstInstruction() const;
-  const Instruction *getTerminator() const;
   bool empty() const;
   std::string toStr() const;
 
+  const Label *getLabel() const;
+  void setLabel(const Label *label);
+
+  const TerminatorInst *getTerminator() const;
+  void setTerminator(const TerminatorInst *terminator);
+
+  friend void initializeVariables(Function *F);
+
 private:
+  const Label *label;
   std::vector<const Instruction *> instructions;
+  const TerminatorInst *terminator;
+
   std::unordered_set<BasicBlock *> predecessors;
   std::unordered_set<BasicBlock *> successors;
-
-  friend void cleanUnusedBranches(Function *F);
 };
+
+class Program;
 
 class Function {
 public:
@@ -517,51 +506,66 @@ public:
   std::string getName() const;
   void setName(const std::string &name);
 
-  const Type *getReturnType() const;
-  void setReturnType(const Type *type);
+  const VarType *getReturnType() const;
+  void setReturnType(const VarType *type);
 
   const Parameters *getParams() const;
   void setParams(const Parameters *parameters);
 
-  void defineVariable(const std::string &name, const Type *type);
+  void defineVariable(const std::string &name, const VarType *type);
   Variable *getVariable(const std::string &name);
   const std::unordered_map<std::string, Variable *> &getVariables() const;
+  bool hasVariable(const std::string &name) const;
+  std::string generateNewVariableName();
+
   Label *getLabel(const std::string &name);
+  const Label *generateNewLabel();
   const std::unordered_map<std::string, Label *> &getLabels() const;
+  std::string generateNewLabelName();
 
   void addInstruction(Instruction *inst);
 
-  void newBasicBlock();
+  BasicBlock *newBasicBlock();
+  BasicBlock *getCurrBasicBlock() const;
   const std::vector<BasicBlock *> &getBasicBlocks() const;
 
   std::string toStr() const;
 
+  friend void formatBasicBlock(Function *F);
+
 private:
   std::string name;
-  const Type *returnType{};
+  const VarType *returnType{};
   const Parameters *params{};
   std::vector<BasicBlock *> basicBlocks;
   std::unordered_map<std::string, Variable *> variables;
   // the name of a label may need to be changed later
   std::unordered_map<std::string, Label *> labels;
 
-  friend void rearrangeBBs(Function *F);
+  std::string longestVarName;
+  int64_t varCounter;
+  std::string longestLabelName;
+  int64_t labelCounter;
 };
 
 class Program {
 public:
-  Program() = default;
+  Program();
   const std::vector<Function *> &getFunctions() const;
   void addFunction(Function *F);
   Function *getCurrFunction() const;
-  void addInstruction(Instruction *inst);
 
-  void defineVariable(const std::string &name, const Type *type);
-  Variable *getVariable(const std::string &name) const;
-  Label *getLabel(const std::string &name) const;
+  // easy access to the current function
+  void addInstructionToCurrFunc(Instruction *inst, int64_t lineno);
+  void declareVariableInCurrFunc(const std::string &name, const VarType *type);
+  Variable *getVariableInCurrFunc(const std::string &name) const;
+  bool currFuncHasVariable(const std::string &name) const;
+  Label *getLabelInCurrFunc(const std::string &name);
+  BasicBlock *newBasicBlock() const;
 
-  void newBasicBlock() const;
   std::string toStr() const;
+
+  std::string getNewGlobalSymbol();
 
   Program(const Program &) = delete;
   Program &operator=(const Program &) = delete;
@@ -572,25 +576,9 @@ private:
 
 class Visitor {
 public:
-  virtual void visit(const Variable *var) = 0;
-  virtual void visit(const Number *num) = 0;
-  virtual void visit(const MemoryLocation *mem) = 0;
-  virtual void visit(const Int64Type *type) = 0;
-  virtual void visit(const ArrayType *type) = 0;
-  virtual void visit(const TupleType *type) = 0;
-  virtual void visit(const CodeType *type) = 0;
-  virtual void visit(const VoidType *type) = 0;
-  virtual void visit(const Arguments *args) = 0;
-  virtual void visit(const Parameters *params) = 0;
-  virtual void visit(const CompareOp *op) = 0;
-  virtual void visit(const ArithOp *op) = 0;
-  virtual void visit(const RuntimeFunction *func) = 0;
-  virtual void visit(const FunctionName *name) = 0;
-  virtual void visit(const Label *label) = 0;
   virtual void visit(const DeclarationInst *inst) = 0;
   virtual void visit(const AssignInst *inst) = 0;
-  virtual void visit(const ArithInst *inst) = 0;
-  virtual void visit(const CompareInst *inst) = 0;
+  virtual void visit(const OpInst *inst) = 0;
   virtual void visit(const LoadInst *inst) = 0;
   virtual void visit(const StoreInst *inst) = 0;
   virtual void visit(const ArrayLenInst *inst) = 0;
@@ -606,4 +594,4 @@ public:
   virtual void visit(const CallAssignInst *inst) = 0;
 };
 
-} // namespace IR
+} // namespace LA
