@@ -306,6 +306,7 @@ const unordered_map<string, Variable *> &Function::getVariables() const { return
 const unordered_map<string, Label *> &Function::getLabels() const { return labels; }
 void Function::addInstruction(Instruction *inst) { basicBlocks.back()->addInstruction(inst); }
 Label *Function::getLabel(const string &name) {
+  longestLabelName = name.size() > longestLabelName.size() ? name : longestLabelName;
   if (labels.find(name) == labels.end())
     labels[name] = new Label(name);
   return labels[name];

@@ -32,7 +32,8 @@ class IRGenerator : public Visitor {
 public:
   void visit(const DeclarationInst *inst) {
     auto var = inst->getVar();
-    currentInsts->push_back(var->getVarType()->toStr() + " " + var->getPrefixedName());
+    // add the declaration instruction to the entry block
+    entryInsts.push_back(var->getVarType()->toStr() + " " + var->getPrefixedName());
     auto type = var->getVarType()->getType();
     int64_t initValue;
     if (type == VarType::Type::INT64)
@@ -42,6 +43,8 @@ public:
     else
       throw runtime_error("void type variable cannot be initialized");
     auto initInst = var->getPrefixedName() + " <- " + to_string(initValue);
+    // the initialization instruction should be placed at the original position
+    // because it may inside a loop
     currentInsts->push_back(initInst);
   }
 
