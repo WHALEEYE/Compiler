@@ -380,6 +380,8 @@ private:
 /*
  * Structres.
  */
+class Function;
+
 class BasicBlock {
 public:
   const std::vector<const Instruction *> &getInstructions() const;
@@ -399,6 +401,7 @@ private:
   std::unordered_set<BasicBlock *> successors;
 
   friend void spillInBB(BasicBlock *BB);
+  friend bool doElimination(Function *F);
 };
 
 class Function {

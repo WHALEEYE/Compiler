@@ -1,3 +1,4 @@
+#include "dead_code_eliminator.h"
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
@@ -178,8 +179,10 @@ int main(int argc, char **argv) {
    */
   if (enableCodeGenerator) {
     std::unordered_map<const L2::Function *, const L2::ColorResult *> colorResults;
-    for (auto F : P->getFunctions())
+    for (auto F : P->getFunctions()) {
+      L2::eliminateDeadCode(F);
       colorResults[F] = &L2::colorGraph(F);
+    }
     L2::generate_code(P, colorResults);
   }
 
