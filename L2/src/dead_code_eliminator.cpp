@@ -41,7 +41,14 @@ public:
 
   void visit(const SelfModInst *inst) { inst->getLval()->accept(*this); }
 
-  void visit(const AssignInst *inst) { inst->getLval()->accept(*this); }
+  void visit(const AssignInst *inst) { 
+    if (inst->getLval() == inst->getRval()) {  
+      eliminated = true;
+      return;
+    }
+    
+    inst->getLval()->accept(*this);
+  }
 
   void visit(const CompareAssignInst *inst) { inst->getLval()->accept(*this); }
 
